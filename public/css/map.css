@@ -131,10 +131,11 @@
 
 /* Tile art. The face stays underneath as the "before it loads" fill. */
 .mapsvg.art .dim { fill: #05070f; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
-.mapsvg.art.has-sel .hex:not(.sel) .dim { opacity: 0.62; }
+.mapsvg.art.has-sel .hex:not(.sel) .dim { opacity: 0.7; }
 .mapsvg.art .hex.sel .face { fill: var(--hull); }
-.mapsvg.art .hex.sel .edge { stroke: var(--star); stroke-width: 1.6; }
-.mapsvg.art .shared-edge { fill: none; stroke: var(--star); stroke-width: 1; stroke-dasharray: 3 2.5; opacity: 0.8; pointer-events: none; }
+/* Tile art is dark in both themes, so its outlines are always light. */
+.mapsvg.art .hex.sel .edge { stroke: #f4f6ff; stroke-width: 1.8; }
+.mapsvg.art .shared-edge { fill: none; stroke: #f4f6ff; stroke-width: 1; stroke-dasharray: 3 2.5; opacity: 0.8; pointer-events: none; }
 .mapsvg.art .num-scrim { fill: #05070f; opacity: 0.72; pointer-events: none; }
 .mapsvg.art .hex.pic .face { fill: var(--hull-2); }
 @media (prefers-reduced-motion: reduce) { .mapsvg.art .dim { transition: none; } }

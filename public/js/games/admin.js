@@ -1,7 +1,7 @@
 // Admin pages: friends and invite codes, deleted games, and game history.
 // The server checks the role on every call; this only decides what to show.
 
-import { $, $$, esc, plural, toast } from "../lib.js";
+import { $, esc, plural, toast } from "../lib.js";
 import { navigate } from "../router.js";
 import { hydrateSymbols } from "../factions.js";
 import { get, post, patch, del } from "./api.js";

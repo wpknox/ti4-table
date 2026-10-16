@@ -146,7 +146,8 @@ a.btn-primary { color: var(--void); }
 .combo { position: relative; }
 .combo-sym { position: absolute; left: 12px; top: 0; bottom: 0; display: flex; align-items: center; color: var(--dust); pointer-events: none; font-size: 1.2rem; }
 .combo-sym .fsym { margin-right: 0; }
-.combo-sym:not(:empty) + input { padding-left: 42px; }
+/* Room for the symbol, reserved even before a faction is picked so the text never jumps. */
+.combo[data-kind="faction"] input { padding-left: 42px; }
 .combo-list { position: absolute; z-index: 15; left: 0; right: 0; top: calc(100% + 4px); max-height: min(46dvh, 320px); overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--hull-2); border: 1px solid var(--seam); border-radius: var(--radius-m); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
 .combo-list li { display: flex; align-items: center; min-height: 44px; padding: 0 10px; border-radius: var(--radius-s); cursor: pointer; }
 .combo-list li.active, .combo-list li:hover { background: var(--hull); }

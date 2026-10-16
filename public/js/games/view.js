@@ -5,10 +5,10 @@
 // textContent. Hiding Edit/Delete is a convenience; the server decides.
 
 import { $, $$, esc, plural, toast } from "../lib.js";
-import { navigate, back } from "../router.js";
+import { navigate } from "../router.js";
 import { hydrateSymbols } from "../factions.js";
 import { get, post, del, currentPlayer, ApiError } from "./api.js";
-import { factionName, FACTION_IDS } from "./names.js";
+import { factionName } from "./names.js";
 import * as S from "./stats.js";
 import { dayShort, yearOf, dayLong, expansionsText, safeHttps, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
@@ -121,7 +121,9 @@ function renderGame(env, id) {
     if (ctx.stale()) return;
     document.title = `Game of ${dayLong(g.played_on)} · TI4 Table`;
     const winner = g.seats.find((s) => s.is_winner);
-    const seats = g.seats
+    // Finishing order: winner first, then by points (the API returns seat order).
+    const seats = [...g.seats]
+      .sort((a, b) => b.is_winner - a.is_winner || b.points - a.points)
       .map(
         (s) => `<li class="gseat${s.is_winner ? " is-winner" : ""}">
           <span class="gscore" aria-label="${esc(s.points)} points">${esc(s.points)}</span>
@@ -336,7 +338,6 @@ function renderStats(env) {
     }
 
     const facts = S.byFaction(games);
-    const mostWins = players[0];
     const seat = S.seatEffects(games);
     main.innerHTML = `<div class="games-page g-stats">
       ${tabs("stats", me)}
