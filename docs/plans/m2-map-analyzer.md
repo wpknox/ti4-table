@@ -11,7 +11,13 @@ Paste a map string. The page shows:
 
 ## Phases
 
-### 2a: Tile data and map-string parsing (research + data; no UI)
+### 2a: Tile data and map-string parsing (research + data; no UI): DONE
+
+This was built and reviewed on 2026-10-15. Read `docs/research/tile-data.md` before 2b. Two things differ from the shape below:
+- A planet's `trait` and `tech` can be **arrays** for some Thunder's Edge planets.
+- Tiles have extra fields: `set`, `offMap`, `offMapHome`, `spaceStation`, `fracture`, `active`.
+
+Seats come from the string itself, in this order: P1–P8 markers, then home tiles (Creuss and Crimson gates stand in for off-map homes), then 0s, then TI Assistant's defaults with a warning. `parse.js` exports `parseMapString`, `posToHex`, `hexToPos`, `hexToPixel`, `hexDistance`, `ringOf`, `DIRS`, `rotateLanes` and `HOME_POSITIONS`. Thunder's Edge hyperlanes 119–124 are not in the data, and the parser warns when a map uses them.
 
 Deliverables:
 - `docs/research/tile-data.md` covers which sources were checked, each one's **licence**, and what was used. This repo is public and GPL-3.0, so data may only be copied from a source whose licence allows it. If none does, transcribe the facts by hand: the numbers printed on tiles are game facts, but someone's JSON file is their work. Write down the reasoning.

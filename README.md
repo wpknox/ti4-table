@@ -26,6 +26,8 @@ node scripts/build-rules.mjs path/to/tirules-search   # or set TIRULES_DIR
 
 Rules text: [tirules-search](https://github.com/wpknox/tirules-search), a fork of [dangothemango/tirules](https://github.com/dangothemango/tirules) by dangothemango and BradleyΣ, with Dane's rulings. GPL-3.0, so this project is GPL-3.0 too (see `LICENSE`).
 
+Map tile data: converted from the [TI4 Tabletop Playground mod](https://github.com/darrellanderson/TI4-TTPG-TS) and cross-checked against [AsyncTI4](https://github.com/AsyncTI4/TI4_map_generator_bot). Both are released under the Unlicense, which excludes their art; no art is used here. Details are in `docs/research/tile-data.md`.
+
 Fonts: [Saira](https://fonts.google.com/specimen/Saira) and [Atkinson Hyperlegible Next](https://fonts.google.com/specimen/Atkinson+Hyperlegible+Next), both under the SIL Open Font License 1.1.
 
 *Twilight Imperium* is © Fantasy Flight Games. This project isn't affiliated with them.
