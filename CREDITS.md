@@ -26,3 +26,9 @@ Source: [ESA/Hubble, heic1214a](https://esahubble.org/images/heic1214a/). Licenc
 Rules text comes from [tirules-search](https://github.com/wpknox/tirules-search), a fork of [dangothemango/tirules](https://github.com/dangothemango/tirules) by dangothemango and BradleyΣ. The highlighted rulings are official rulings from Dane (the rules designer's team), not part of the Living Rules Reference. *Twilight Imperium* is © Fantasy Flight Games. This site isn't affiliated with them.
 
 The rules content is GPL-3.0, so this repository is GPL-3.0.
+
+## Tile images
+
+The system tile images in `public/img/tiles/` are artwork from *Twilight Imperium: Fourth Edition*, © Fantasy Flight Games. They are used under the [Asmodee fan content policy](https://www.zmangames.com/ip-policy/), for a free, non-commercial fan site. That policy is not a licence, and the art will be removed promptly if its owner asks.
+
+The images come from the tile set in [AsyncTI4/TI4_map_generator_bot](https://github.com/AsyncTI4/TI4_map_generator_bot) (`src/main/resources/tiles/`), resized and re-encoded as WebP. `public/img/tiles/manifest.json` records the source file for each tile. That repository carries no licence for the artwork. Our permission to use it comes only from the fan policy above.

@@ -1,0 +1,655 @@
+{
+ "source": "https://github.com/AsyncTI4/TI4_map_generator_bot (branch master)",
+ "orientation": "flat-top; 345x299 px sources resized to 256x222 (2:√3)",
+ "tiles": {
+  "1": {
+   "file": "1.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/01_Jord.png",
+   "notes": ""
+  },
+  "2": {
+   "file": "2.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/02_MollPrimus.png",
+   "notes": ""
+  },
+  "3": {
+   "file": "3.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/03_Darien.png",
+   "notes": ""
+  },
+  "4": {
+   "file": "4.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/04_Muaat.png",
+   "notes": ""
+  },
+  "5": {
+   "file": "5.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/05_Nestphar.png",
+   "notes": ""
+  },
+  "6": {
+   "file": "6.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/06_000.png",
+   "notes": ""
+  },
+  "7": {
+   "file": "7.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/07_Winnu.png",
+   "notes": ""
+  },
+  "8": {
+   "file": "8.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/08_MordaiII.png",
+   "notes": ""
+  },
+  "9": {
+   "file": "9.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/09_Maaluuk.png",
+   "notes": ""
+  },
+  "10": {
+   "file": "10.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/10_ArcPime.png",
+   "notes": ""
+  },
+  "11": {
+   "file": "11.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/11_LisisII.png",
+   "notes": ""
+  },
+  "12": {
+   "file": "12.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/12_Nar.png",
+   "notes": ""
+  },
+  "13": {
+   "file": "13.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/13_Trenlak.png",
+   "notes": ""
+  },
+  "14": {
+   "file": "14.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/14_ArchonRen.png",
+   "notes": ""
+  },
+  "15": {
+   "file": "15.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/15_Retillion.png",
+   "notes": ""
+  },
+  "16": {
+   "file": "16.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/16_Arretze.png",
+   "notes": ""
+  },
+  "17": {
+   "file": "17.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/17_DeltaWH.png",
+   "notes": "Delta wormhole tile (Creuss gate); 51 is the real Creuss home"
+  },
+  "18": {
+   "file": "18.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/18_MR.png",
+   "notes": ""
+  },
+  "19": {
+   "file": "19.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/19_Wellon.png",
+   "notes": ""
+  },
+  "20": {
+   "file": "20.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/20_VefutII.png",
+   "notes": ""
+  },
+  "21": {
+   "file": "21.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/21_Thibah.png",
+   "notes": ""
+  },
+  "22": {
+   "file": "22.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/22_Tarmann.png",
+   "notes": ""
+  },
+  "23": {
+   "file": "23.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/23_Saudor.png",
+   "notes": ""
+  },
+  "24": {
+   "file": "24.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/24_MeharXull.png",
+   "notes": ""
+  },
+  "25": {
+   "file": "25.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/25_Quann.png",
+   "notes": ""
+  },
+  "26": {
+   "file": "26.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/26_Lodor.png",
+   "notes": ""
+  },
+  "27": {
+   "file": "27.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/27_NewAlbion.png",
+   "notes": ""
+  },
+  "28": {
+   "file": "28.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/28_Tequran.png",
+   "notes": ""
+  },
+  "29": {
+   "file": "29.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/29_Qucenn.png",
+   "notes": ""
+  },
+  "30": {
+   "file": "30.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/30_Mellon.png",
+   "notes": ""
+  },
+  "31": {
+   "file": "31.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/31_Lazar.png",
+   "notes": ""
+  },
+  "32": {
+   "file": "32.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/32_DalBootha.png",
+   "notes": ""
+  },
+  "33": {
+   "file": "33.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/33_Corneeq.png",
+   "notes": ""
+  },
+  "34": {
+   "file": "34.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/34_Centauri.png",
+   "notes": ""
+  },
+  "35": {
+   "file": "35.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/35_Bereg.png",
+   "notes": ""
+  },
+  "36": {
+   "file": "36.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/36_Arnor.png",
+   "notes": ""
+  },
+  "37": {
+   "file": "37.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/37_Arinam.png",
+   "notes": ""
+  },
+  "38": {
+   "file": "38.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/38_Abyz.png",
+   "notes": ""
+  },
+  "39": {
+   "file": "39.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/39_AlphaWH.png",
+   "notes": ""
+  },
+  "40": {
+   "file": "40.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/40_BetaWH.png",
+   "notes": ""
+  },
+  "41": {
+   "file": "41.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/41_GravityRift.png",
+   "notes": ""
+  },
+  "42": {
+   "file": "42.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/42_Nebula.png",
+   "notes": ""
+  },
+  "43": {
+   "file": "43.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/43_Supernova.png",
+   "notes": ""
+  },
+  "44": {
+   "file": "44.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/44_Asteroids.png",
+   "notes": ""
+  },
+  "45": {
+   "file": "45.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/45_Asteroids.png",
+   "notes": ""
+  },
+  "46": {
+   "file": "46.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/46_Void.png",
+   "notes": ""
+  },
+  "47": {
+   "file": "47.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/47_Void.png",
+   "notes": ""
+  },
+  "48": {
+   "file": "48.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/48_Void.png",
+   "notes": ""
+  },
+  "49": {
+   "file": "49.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/49_Void.png",
+   "notes": ""
+  },
+  "50": {
+   "file": "50.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/50_Void.png",
+   "notes": ""
+  },
+  "51": {
+   "file": "51.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/51_Creuss.png",
+   "notes": "Irregular shape, not a hex; fitted inside the 2:√3 frame with transparent margins (off-map home)"
+  },
+  "52": {
+   "file": "52.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/52_Ixth.png",
+   "notes": ""
+  },
+  "53": {
+   "file": "53.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/53_Arcturus.png",
+   "notes": ""
+  },
+  "54": {
+   "file": "54.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/54_Acheron.png",
+   "notes": ""
+  },
+  "55": {
+   "file": "55.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/55_Elysium.png",
+   "notes": ""
+  },
+  "56": {
+   "file": "56.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/56_TheDark.png",
+   "notes": ""
+  },
+  "57": {
+   "file": "57.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/57_Naazir.png",
+   "notes": ""
+  },
+  "58": {
+   "file": "58.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/58_Ylir.png",
+   "notes": ""
+  },
+  "59": {
+   "file": "59.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/59_ArchonVail.png",
+   "notes": ""
+  },
+  "60": {
+   "file": "60.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/60_Perimeter.png",
+   "notes": ""
+  },
+  "61": {
+   "file": "61.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/61_Ang.png",
+   "notes": ""
+  },
+  "62": {
+   "file": "62.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/62_SemLore.png",
+   "notes": ""
+  },
+  "63": {
+   "file": "63.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/63_Vorhal.png",
+   "notes": ""
+  },
+  "64": {
+   "file": "64.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/64_Atlas.png",
+   "notes": ""
+  },
+  "65": {
+   "file": "65.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/65_Primor.png",
+   "notes": ""
+  },
+  "66": {
+   "file": "66.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/66_HopesEnd.png",
+   "notes": ""
+  },
+  "67": {
+   "file": "67.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/67_Cormund.png",
+   "notes": ""
+  },
+  "68": {
+   "file": "68.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/68_Everra.png",
+   "notes": ""
+  },
+  "69": {
+   "file": "69.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/69_Accoen.png",
+   "notes": ""
+  },
+  "70": {
+   "file": "70.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/70_Kraag.png",
+   "notes": ""
+  },
+  "71": {
+   "file": "71.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/71_Bakal.png",
+   "notes": ""
+  },
+  "72": {
+   "file": "72.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/72_Lisis.png",
+   "notes": ""
+  },
+  "73": {
+   "file": "73.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/73_Cealdri.png",
+   "notes": ""
+  },
+  "74": {
+   "file": "74.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/74_Vega.png",
+   "notes": ""
+  },
+  "75": {
+   "file": "75.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/75_Abaddon.png",
+   "notes": ""
+  },
+  "76": {
+   "file": "76.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/76_Rigel.png",
+   "notes": ""
+  },
+  "77": {
+   "file": "77.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/77_Void.png",
+   "notes": ""
+  },
+  "78": {
+   "file": "78.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/78_Void.png",
+   "notes": ""
+  },
+  "79": {
+   "file": "79.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/79_AsteroidsAlphaWH.png",
+   "notes": ""
+  },
+  "80": {
+   "file": "80.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/80_Supernova.png",
+   "notes": ""
+  },
+  "81": {
+   "file": "81.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/81_NovaSeed.png",
+   "notes": ""
+  },
+  "82": {
+   "file": "82.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/82a_Mallice_locked.png",
+   "notes": "Mallice, locked face (inactive, gamma wormhole only); irregular shape fitted with transparent margins. Unlocked face (82b) not included"
+  },
+  "92": {
+   "file": "92.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/92_Bastion.png",
+   "notes": ""
+  },
+  "93": {
+   "file": "93.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/93_RalNel.png",
+   "notes": ""
+  },
+  "94": {
+   "file": "94.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/94_SorrowWH.png",
+   "notes": "Sorrow/epsilon wormhole gate (Crimson Rebellion); 118 is the real home"
+  },
+  "95": {
+   "file": "95.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/95_Deepwrought.png",
+   "notes": ""
+  },
+  "96": {
+   "file": "96.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/96a_Firmament.png",
+   "notes": "The Firmament side (96a)"
+  },
+  "97": {
+   "file": "97.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/97_Faunus.png",
+   "notes": ""
+  },
+  "98": {
+   "file": "98.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/98_Garbozia.png",
+   "notes": ""
+  },
+  "99": {
+   "file": "99.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/99_Emelpar.png",
+   "notes": ""
+  },
+  "100": {
+   "file": "100.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/100_Tempesta.png",
+   "notes": ""
+  },
+  "101": {
+   "file": "101.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/101_Olergodt.png",
+   "notes": ""
+  },
+  "102": {
+   "file": "102.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/102_Andeara.png",
+   "notes": ""
+  },
+  "103": {
+   "file": "103.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/103_ViraPicsIII.png",
+   "notes": ""
+  },
+  "104": {
+   "file": "104.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/104_Lesab.png",
+   "notes": ""
+  },
+  "105": {
+   "file": "105.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/105_Neutera.png",
+   "notes": ""
+  },
+  "106": {
+   "file": "106.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/106_Cresius.png",
+   "notes": ""
+  },
+  "107": {
+   "file": "107.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/107_Tiamat.png",
+   "notes": ""
+  },
+  "108": {
+   "file": "108.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/108_Kostboth.png",
+   "notes": ""
+  },
+  "109": {
+   "file": "109.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/109_Bellatrix.png",
+   "notes": ""
+  },
+  "110": {
+   "file": "110.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/110_Horizon.png",
+   "notes": ""
+  },
+  "111": {
+   "file": "111.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/111_Tarana.png",
+   "notes": ""
+  },
+  "112": {
+   "file": "112.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/112_Mecatol.png",
+   "notes": ""
+  },
+  "113": {
+   "file": "113.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/113_BetaRift.png",
+   "notes": ""
+  },
+  "114": {
+   "file": "114.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/114_EntropicScar.png",
+   "notes": ""
+  },
+  "115": {
+   "file": "115.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/115_Industrex.png",
+   "notes": ""
+  },
+  "116": {
+   "file": "116.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/116_Lemox.png",
+   "notes": ""
+  },
+  "117": {
+   "file": "117.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/117_TheWatchtower.png",
+   "notes": ""
+  },
+  "118": {
+   "file": "118.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/118_Crimson.png",
+   "notes": "Crimson Rebellion home; irregular shape fitted with transparent margins (off-map)"
+  },
+  "83A": {
+   "file": "83A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/83a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "83B": {
+   "file": "83B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/83b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "84A": {
+   "file": "84A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/84a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "84B": {
+   "file": "84B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/84b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "85A": {
+   "file": "85A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/85a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "85B": {
+   "file": "85B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/85b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "86A": {
+   "file": "86A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/86a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "86B": {
+   "file": "86B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/86b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "87A": {
+   "file": "87A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/87a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "87B": {
+   "file": "87B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/87b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "88A": {
+   "file": "88A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/88a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "88B": {
+   "file": "88B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/88b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "89A": {
+   "file": "89A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/89a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "89B": {
+   "file": "89B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/89b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "90A": {
+   "file": "90A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/90a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "90B": {
+   "file": "90B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/90b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "91A": {
+   "file": "91A.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/91a_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "91B": {
+   "file": "91B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/91b_Hyperlane.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  },
+  "96B": {
+   "file": "96B.webp",
+   "source": "AsyncTI4/TI4_map_generator_bot src/main/resources/tiles/96b_Obsidian.png",
+   "notes": "Hyperlane face at rotation 0 (unrotated file); rotate in CSS/SVG for 60-degree steps"
+  }
+ },
+ "missing": [
+  "900",
+  "901",
+  "902",
+  "903",
+  "904",
+  "905",
+  "906"
+ ]
+}
