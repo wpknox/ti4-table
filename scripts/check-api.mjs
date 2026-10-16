@@ -13,7 +13,8 @@ const STATE = ".wrangler/check-state";
 let failures = 0;
 function check(name, ok, detail = "") {
   if (!ok) failures++;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok || !detail ? "" : `  -> ${detail}`}`);
+  const why = ok || !detail ? "" : `  -> ${detail}`;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${why}`);
 }
 
 async function api(method, path, { cookie, body, origin = BASE, type = "application/json", raw, ip } = {}) {

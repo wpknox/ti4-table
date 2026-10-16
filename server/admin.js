@@ -36,12 +36,7 @@ export async function listAdminPlayers(ctx) {
   });
 }
 
-export async function patchPlayer(ctx, id) {
-  requireRole(ctx, "admin");
-  const body = await readJson(ctx.request);
-  const db = ctx.env.DB;
-  const target = await db.prepare("SELECT id, role, archived FROM players WHERE id = ?").bind(id).first();
-  if (!target) throw new HttpError(404, "No such player.");
+function checkPatchBody(body) {
   if (body.role !== undefined && !["none", "editor", "admin"].includes(body.role)) {
     throw new HttpError(400, "role must be none, editor or admin.");
   }
@@ -49,6 +44,15 @@ export async function patchPlayer(ctx, id) {
     throw new HttpError(400, "archived must be true or false.");
   }
   if (body.role === undefined && body.archived === undefined) throw new HttpError(400, "Nothing to change.");
+}
+
+export async function patchPlayer(ctx, id) {
+  requireRole(ctx, "admin");
+  const body = await readJson(ctx.request);
+  const db = ctx.env.DB;
+  const target = await db.prepare("SELECT id, role, archived FROM players WHERE id = ?").bind(id).first();
+  if (!target) throw new HttpError(404, "No such player.");
+  checkPatchBody(body);
   // An admin can't lock themselves out.
   if (id === ctx.player.id && ((body.role !== undefined && body.role !== "admin") || body.archived === true)) {
     throw new HttpError(400, "You can't remove your own admin access.");
@@ -62,8 +66,10 @@ export async function patchPlayer(ctx, id) {
     if (!other.n) throw new HttpError(409, "There has to be at least one admin.");
   }
 
+  let archived = null;
+  if (body.archived !== undefined) archived = body.archived ? 1 : 0;
   const stmts = [db.prepare("UPDATE players SET role = COALESCE(?, role), archived = COALESCE(?, archived) WHERE id = ?")
-      .bind(body.role ?? null, body.archived === undefined ? null : body.archived ? 1 : 0, id)];
+      .bind(body.role ?? null, archived, id)];
   // Cutting access also ends existing sessions (they'd be refused anyway).
   if (body.role === "none" || body.archived === true) {
     stmts.push(db.prepare("DELETE FROM sessions WHERE player_id = ?").bind(id));

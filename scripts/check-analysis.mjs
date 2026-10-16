@@ -59,7 +59,6 @@ console.log("SYM");
   check(m.mecatol === 3, `mecatol ${m.mecatol}`);
   check(m.adjacentPlanets === 3, `adjacentPlanets ${m.adjacentPlanets}`);
   for (const s of report.seats) {
-    const { distance, ...rest } = s.metrics;
     // Rotating the map turns contested keys too, so compare shape not keys.
     const norm = (x) => JSON.stringify({ ...x, contested: Object.values(x.contested) });
     check(norm(s.metrics) === norm(m), `seat ${s.seat} metrics match seat 1`);

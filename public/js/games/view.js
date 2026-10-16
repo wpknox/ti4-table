@@ -16,12 +16,17 @@ import { renderAdmin, renderHistory } from "./admin.js";
 
 // ── Dispatch ───────────────────────────────────────────────────────────────
 
+// Routes under /games/<id>; the id is the first capture group.
+const GAME_ROUTES = [
+  [/^\/(\d{1,12})$/, (env, id) => renderGame(env, id)],
+  [/^\/(\d{1,12})\/edit$/, (env, id) => renderForm(env, id)],
+  [/^\/(\d{1,12})\/history$/, (env, id) => renderHistory(env, id)],
+];
+
 export async function renderGames(url, main, ctx) {
   document.title = "Games · TI4 Table";
   const path = url.pathname.replace(/\/+$/, "");
   const rest = path.slice("/games".length);
-  let m;
-
   let me = null;
   try {
     me = await currentPlayer();
@@ -39,9 +44,10 @@ export async function renderGames(url, main, ctx) {
   if (rest === "/stats") return renderStats(env);
   if (rest === "/me") return renderMe(env);
   if (rest === "/admin") return renderAdmin(env);
-  if ((m = rest.match(/^\/(\d{1,12})$/))) return renderGame(env, Number(m[1]));
-  if ((m = rest.match(/^\/(\d{1,12})\/edit$/))) return renderForm(env, Number(m[1]));
-  if ((m = rest.match(/^\/(\d{1,12})\/history$/))) return renderHistory(env, Number(m[1]));
+  for (const [re, render] of GAME_ROUTES) {
+    const m = re.exec(rest);
+    if (m) return render(env, Number(m[1]));
+  }
   main.innerHTML = `<div class="notfound"><h1>No such games page</h1><p><a href="/games">Go to the games</a></p></div>`;
 }
 
@@ -129,7 +135,7 @@ function renderGame(env, id) {
           <span class="gscore" aria-label="${esc(s.points)} points">${esc(s.points)}</span>
           <span class="gseat-body">
             <span class="gfaction">${sym(s.faction)}${esc(factionName(s.faction))}</span>
-            <span class="gplayer">${esc(s.player_name)}${s.color ? `, ${esc(s.color)}` : ""}${s.is_winner ? ", winner" : ""}${s.is_speaker_start ? ", started as speaker" : ""}${s.seat_index != null ? `, seat ${s.seat_index + 1}` : ""}</span>
+            <span class="gplayer">${esc(seatDetail(s))}</span>
           </span></li>`,
       )
       .join("");
@@ -150,29 +156,57 @@ function renderGame(env, id) {
       <p class="gfoot muted">Logged by ${esc(g.created_by?.name ?? "someone")}${edited && g.updated_by?.name ? `, last edited by ${esc(g.updated_by.name)}` : ""}.</p>
       <div class="gactions"></div>
     </div>`;
-    const acts = $(".gactions", main);
-    if (g.can_edit) acts.insertAdjacentHTML("beforeend", `<a class="btn btn-primary" href="/games/${g.id}/edit">Edit game</a>`);
-    if (me?.role === "admin") acts.insertAdjacentHTML("beforeend", `<a class="btn" href="/games/${g.id}/history">History</a>`);
-    if (me?.role === "admin" && g.deleted_at) {
-      const b = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: "Restore game" });
-      b.addEventListener("click", async () => {
-        b.disabled = true;
-        try {
-          await post(`/api/admin/games/${g.id}/restore`, {});
-          toast("Game restored");
-          navigate(`/games/${g.id}`, { replace: true });
-        } catch (err) { b.disabled = false; toast(err.message); }
-      });
-      acts.append(b);
-    }
-    if (g.can_delete && !g.deleted_at) {
-      const b = Object.assign(document.createElement("button"), { type: "button", className: "btn btn-quiet", textContent: "Delete game" });
-      b.addEventListener("click", () => confirmDelete(acts, b, g));
-      acts.append(b);
-    }
+    addGameActions($(".gactions", main), g, me);
     void hydrateSymbols(main);
     scrollTo(0, ctx.restoring ? (ctx.scroll ?? 0) : 0);
   });
+}
+
+// Edit / History / Restore / Delete, depending on the viewer and the game.
+function addGameActions(acts, g, me) {
+  if (g.can_edit) acts.insertAdjacentHTML("beforeend", `<a class="btn btn-primary" href="/games/${g.id}/edit">Edit game</a>`);
+  const admin = me?.role === "admin";
+  if (admin) acts.insertAdjacentHTML("beforeend", `<a class="btn" href="/games/${g.id}/history">History</a>`);
+  if (admin && g.deleted_at) {
+    const b = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: "Restore game" });
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      try {
+        await post(`/api/admin/games/${g.id}/restore`, {});
+        toast("Game restored");
+        navigate(`/games/${g.id}`, { replace: true });
+      } catch (err) { b.disabled = false; toast(err.message); }
+    });
+    acts.append(b);
+  }
+  if (g.can_delete && !g.deleted_at) {
+    const b = Object.assign(document.createElement("button"), { type: "button", className: "btn btn-quiet", textContent: "Delete game" });
+    b.addEventListener("click", () => confirmDelete(acts, b, g));
+    acts.append(b);
+  }
+}
+
+// "Name, colour, winner, started as speaker, seat 3": whichever parts apply.
+function seatDetail(s) {
+  const parts = [s.player_name];
+  if (s.color) parts.push(s.color);
+  if (s.is_winner) parts.push("winner");
+  if (s.is_speaker_start) parts.push("started as speaker");
+  if (s.seat_index != null) parts.push(`seat ${s.seat_index + 1}`);
+  return parts.join(", ");
+}
+
+function headToHeadHtml(p, other, h) {
+  if (!h.together) return `<p class="muted">${esc(p.name)} and ${esc(other.name)} haven't played together yet.</p>`;
+  let level = "";
+  if (h.tied) level = `, and ${h.tied} ${h.tied === 1 ? "was" : "were"} level`;
+  return `<p>${esc(p.name)} and ${esc(other.name)} sat down together in ${esc(plural(h.together, "game"))}. ${esc(p.name)} finished higher in ${h.aAhead}, ${esc(other.name)} in ${h.bAhead}${level}.</p>`;
+}
+
+function unplayedHtml(p, unplayed) {
+  if (!unplayed.length) return `<p class="muted">${esc(p.name)} has played every faction.</p>`;
+  const items = unplayed.map((f) => `<li>${sym(f)}${esc(factionName(f))}</li>`).join("");
+  return `<ul class="unplayed">${items}</ul>`;
 }
 
 function confirmDelete(acts, trigger, g) {
@@ -393,13 +427,14 @@ function renderStats(env) {
         <h3>Against another player</h3>
         <label for="vs" class="visually-hidden">Compare with</label>
         <select id="vs"><option value="">Choose a player</option>${others.map((o) => opt(o.id, o.name, o.id === vsId)).join("")}</select>
-        ${h ? (h.together ? `<p>${esc(p.name)} and ${esc(other.name)} sat down together in ${esc(plural(h.together, "game"))}. ${esc(p.name)} finished higher in ${h.aAhead}, ${esc(other.name)} in ${h.bAhead}${h.tied ? `, and ${h.tied} ${h.tied === 1 ? "was" : "were"} level` : ""}.</p>` : `<p class="muted">${esc(p.name)} and ${esc(other.name)} haven't played together yet.</p>`) : ""}
+        ${h ? headToHeadHtml(p, other, h) : ""}
         <h3>Factions ${esc(p.name)} hasn't played</h3>
-        ${unplayed.length ? `<ul class="unplayed">${unplayed.map((f) => `<li>${sym(f)}${esc(factionName(f))}</li>`).join("")}</ul>` : `<p class="muted">${esc(p.name)} has played every faction.</p>`}`;
+        ${unplayedHtml(p, unplayed)}`;
       void hydrateSymbols(out);
       $("#vs", out).addEventListener("change", (e) => {
         const v = e.target.value;
-        navigate(`/games/stats?p=${p.id}${v ? `&vs=${v}` : ""}`, { replace: true });
+        const vsPart = v ? `&vs=${v}` : "";
+        navigate(`/games/stats?p=${p.id}${vsPart}`, { replace: true });
       });
     };
     draw(person, vs);

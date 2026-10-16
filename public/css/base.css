@@ -28,6 +28,8 @@
 
 :root {
   color-scheme: dark;
+  --sky: url("/img/space/deep-field.webp");
+  --sky-h: 240px;
   --void: #0a0f24;
   --hull: #121a3a;
   --hull-2: #1b2550;
@@ -92,6 +94,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   margin: 0;
+  position: relative;
   min-height: 100dvh;
   background: var(--void);
   color: var(--star);
@@ -236,10 +239,8 @@ main:focus { outline: none; }
 /* A fixed-height layer behind the masthead and the top of the page, faded
    into --void by the mask. Home screens get 240px; reading views get just
    the masthead, so rule text, reports and forms sit on plain --void. */
-:root { --sky: url("/img/space/deep-field.webp"); --sky-h: 240px; }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --sky: none; } }
 :root[data-theme="light"] { --sky: none; }
-body { position: relative; }
 body::before {
   content: "";
   position: absolute;

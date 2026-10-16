@@ -138,7 +138,7 @@ export async function renderMap(url, main, ctx) {
       <p class="tile-note" id="tile-note" aria-live="polite"></p>
     </div>
     <div class="map-right">
-      ${notes.length ? `<details class="map-notes"><summary>${esc(plural(notes.length, "note"))} about this map string</summary><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></details>` : ""}
+      ${notesHtml(notes)}
       <div class="seats">${said.seats.map((s) => seatBlock(s, report.seats[s.seat - 1], report)).join("")}</div>
     </div>
   </div>`;
@@ -216,12 +216,20 @@ function showRecent(out) {
 
 // ── Seat report ────────────────────────────────────────────────────────────
 
+function notesHtml(notes) {
+  if (!notes.length) return "";
+  const items = notes.map((n) => `<li>${esc(n)}</li>`).join("");
+  return `<details class="map-notes"><summary>${esc(plural(notes.length, "note"))} about this map string</summary><ul>${items}</ul></details>`;
+}
+
+const ruleLink = (rule) => (rule ? ` <a href="/rules/${esc(rule)}">See the rule</a>` : "");
+
 function seatBlock(s, data, report) {
   const faction = data.faction;
   const lines = s.lines
     .map(
       (l) =>
-        `<li>${marker(l.severity)}<span>${esc(l.text)}${l.rule ? ` <a href="/rules/${esc(l.rule)}">See the rule</a>` : ""}</span></li>`,
+        `<li>${marker(l.severity)}<span>${esc(l.text)}${ruleLink(l.rule)}</span></li>`,
     )
     .join("");
   return `<article class="seat" data-seat="${s.seat}">

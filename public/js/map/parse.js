@@ -227,24 +227,27 @@ function findHomes(tiles, seatMarks, data, playerCount, warnings) {
   }
 
   // 3. Nothing marked: fall back to TI Assistant's default layout.
-  if (!picked.length) {
-    const n = playerCount ?? (tiles.some((t) => ringOf(t.pos) === 4) ? 8 : 6);
-    const spots = HOME_POSITIONS[n] ?? [];
-    const taken = new Set(tiles.filter((t) => t.id !== "0").map((t) => t.pos));
-    if (spots.length && spots.every((p) => !taken.has(p))) {
-      warnings.push(`No home systems marked; assumed TI Assistant's ${n}-player home positions.`);
-      for (const pos of spots) {
-        const { q, r } = posToHex(pos);
-        if (!tiles.some((t) => t.pos === pos)) tiles.push({ pos, q, r, id: "0", rotation: 0 });
-      }
-      return spots.slice().sort((a, b) => bearing(...qr(a)) - bearing(...qr(b)));
-    }
-    warnings.push("No home systems found.");
-    return [];
-  }
+  if (!picked.length) return defaultHomes(tiles, playerCount, warnings);
   return picked
     .sort((a, b) => bearing(a.q, a.r) - bearing(b.q, b.r) || a.pos - b.pos)
     .map((t) => t.pos);
+}
+
+// TI Assistant's default home positions, if the map leaves them free.
+function defaultHomes(tiles, playerCount, warnings) {
+  const n = playerCount ?? (tiles.some((t) => ringOf(t.pos) === 4) ? 8 : 6);
+  const spots = HOME_POSITIONS[n] ?? [];
+  const taken = new Set(tiles.filter((t) => t.id !== "0").map((t) => t.pos));
+  if (spots.length && spots.every((p) => !taken.has(p))) {
+    warnings.push(`No home systems marked; assumed TI Assistant's ${n}-player home positions.`);
+    for (const pos of spots) {
+      const { q, r } = posToHex(pos);
+      if (!tiles.some((t) => t.pos === pos)) tiles.push({ pos, q, r, id: "0", rotation: 0 });
+    }
+    return spots.slice().sort((a, b) => bearing(...qr(a)) - bearing(...qr(b)));
+  }
+  warnings.push("No home systems found.");
+  return [];
 }
 
 const qr = (pos) => {

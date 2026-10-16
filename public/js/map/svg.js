@@ -57,22 +57,29 @@ function glyph(kind) {
 
 // ── Words for a tile, used for aria-labels and the caption under the map ────
 
+// "Name, 2 resources 1 influence ..." for each planet, else Mecatol / Empty system.
+function systemLabel(info) {
+  const ps = planetsOf(info).map((p) => {
+    const bits = [`${p.resources} resources`, `${p.influence} influence`];
+    for (const t of techOf(p)) bits.push(`${t} tech skip`);
+    if (p.legendary) bits.push("legendary");
+    return `${p.name}, ${bits.join(" ")}`;
+  });
+  if (ps.length) return ps.join("; ");
+  return info?.type === "mecatol" ? "Mecatol Rex" : "Empty system";
+}
+
 export function tileLabel(tile, info, seats, homeSeat) {
   const parts = [];
   if (homeSeat) {
-    parts.push(`Seat ${homeSeat} home${info?.faction ? `, ${info.faction}` : ""}`);
+    const faction = info?.faction ? `, ${info.faction}` : "";
+    parts.push(`Seat ${homeSeat} home${faction}`);
   } else if (tile.id === "0") {
     parts.push("Open slot");
   } else if (info?.type === "hyperlane") {
     parts.push("Hyperlane");
   } else {
-    const ps = planetsOf(info).map((p) => {
-      const bits = [`${p.resources} resources`, `${p.influence} influence`];
-      for (const t of techOf(p)) bits.push(`${t} tech skip`);
-      if (p.legendary) bits.push("legendary");
-      return `${p.name}, ${bits.join(" ")}`;
-    });
-    parts.push(ps.length ? ps.join("; ") : info?.type === "mecatol" ? "Mecatol Rex" : "Empty system");
+    parts.push(systemLabel(info));
   }
   if (!homeSeat) {
     for (const w of info?.wormholes ?? []) parts.push(`${w} wormhole`);
@@ -99,7 +106,65 @@ export function tileLabel(tile, info, seats, homeSeat) {
 export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set() } = {}) {
   const isArt = view === "art";
   const seatAt = new Map(parsed.homes.map((pos, i) => [pos, i + 1]));
-  const slice = new Map(); // pos -> seat numbers
+  const { slice, sharedPos } = sliceMaps(report);
+
+  const cells = parsed.tiles.map((t) => ({ t, ...hexToPixel(t.q, t.r) }));
+  const xs = cells.map((c) => c.x * R);
+  const ys = cells.map((c) => c.y * R);
+  const pad = 3;
+  const x0 = Math.min(...xs) - R - pad, x1 = Math.max(...xs) + R + pad;
+  const y0 = Math.min(...ys) - R * 0.87 - pad, y1 = Math.max(...ys) + R * 0.87 + pad;
+
+  const defs = isArt ? `<clipPath id="hexclip"><polygon points="${hexPoints(R * GAP)}"/></clipPath>` : "";
+  const out = [
+    `<svg class="mapsvg${isArt ? " art" : ""}" viewBox="${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)}" role="group" aria-labelledby="map-svg-title" xmlns="http://www.w3.org/2000/svg">`,
+    `<title id="map-svg-title">${esc(title)}</title>`,
+    `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>${defs}</defs>`,
+  ];
+
+  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols };
+  for (const c of cells) out.push(...cellMarkup(c, ctx));
+  out.push(`</svg>`);
+  return out.join("");
+}
+
+// ── Pieces of a tile ───────────────────────────────────────────────────────
+
+// Everything for one hex: the group, its face, its marks and its edge.
+function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols }) {
+  const { t } = c;
+  const info = tiles[t.id];
+  const homeSeat = seatAt.get(t.pos);
+  const seats = homeSeat ? [homeSeat] : slice.get(t.pos) ?? [];
+  const label = tileLabel(t, info, seats, homeSeat);
+  const cls = tileClasses(t, info, homeSeat);
+  const hasArt = isArt && art.has(t.id);
+  if (hasArt) cls.push("pic");
+  const attrs = [
+    `class="${cls.join(" ")}"`,
+    `data-pos="${t.pos}"`,
+    seats.length ? `data-seats="${seats.join(" ")}"` : "",
+    `data-label="${esc(label)}"`,
+    homeSeat ? `role="button" tabindex="0" aria-pressed="false"` : `role="img"`,
+    `aria-label="${esc(label)}"`,
+    `transform="translate(${f(c.x * R)} ${f(c.y * R)})"`,
+  ].filter(Boolean);
+  const out = [`<g ${attrs.join(" ")}>`, `<polygon class="face" points="${hexPoints(R * GAP)}"/>`];
+  const shared = !homeSeat && sharedPos.has(t.pos);
+  if (hasArt) return [...out, ...artTile(t, homeSeat, shared)];
+  if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
+  if (shared) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
+
+  if (info?.type === "hyperlane" && info.hyperlanes) out.push(...laneLines(info, t));
+  else if (homeSeat) out.push(...homeMarks(info, homeSeat, symbols));
+  else if (t.id !== "0") out.push(...systemMarks(info));
+  out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
+  return out;
+}
+
+// pos -> seat numbers whose slice it is in, and the set of shared positions.
+function sliceMaps(report) {
+  const slice = new Map();
   const sharedPos = new Set();
   for (const s of report.seats) {
     for (const pos of s.own) slice.set(pos, [s.seat]);
@@ -110,116 +175,103 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
       slice.set(sh.pos, [...new Set([...(slice.get(sh.pos) ?? []), s.seat, ...sh.with])].sort((a, b) => a - b));
     }
   }
+  return { slice, sharedPos };
+}
 
-  const cells = parsed.tiles.map((t) => ({ t, ...hexToPixel(t.q, t.r) }));
-  const xs = cells.map((c) => c.x * R);
-  const ys = cells.map((c) => c.y * R);
-  const pad = 3;
-  const x0 = Math.min(...xs) - R - pad, x1 = Math.max(...xs) + R + pad;
-  const y0 = Math.min(...ys) - R * 0.87 - pad, y1 = Math.max(...ys) + R * 0.87 + pad;
+function tileClasses(t, info, homeSeat) {
+  const type = info?.type;
+  const cls = ["hex"];
+  if (homeSeat) cls.push("home");
+  else if (t.id === "0") cls.push("open");
+  else if (type === "hyperlane") cls.push("lane");
+  else if (type === "mecatol") cls.push("mecatol");
+  if (type === "red" || anomalyList(info).length) cls.push("red");
+  return cls;
+}
 
+// A tile drawn as its picture. Returns the markup pieces, including the closing </g>.
+function artTile(t, homeSeat, shared) {
   const out = [];
+  // Rotation is clockwise in 60-degree steps about the hex centre, which is the group's origin.
+  const rot = t.rotation ?? 0;
+  const w = 2 * R * GAP, h = f((w * 222) / 256);
+  const rotate = rot ? ` transform="rotate(${rot * 60})"` : "";
   out.push(
-    `<svg class="mapsvg${isArt ? " art" : ""}" viewBox="${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)}" role="group" aria-labelledby="map-svg-title" xmlns="http://www.w3.org/2000/svg">`,
-    `<title id="map-svg-title">${esc(title)}</title>`,
-    `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>${isArt ? `<clipPath id="hexclip"><polygon points="${hexPoints(R * GAP)}"/></clipPath>` : ""}</defs>`,
+    `<g clip-path="url(#hexclip)" pointer-events="none"><image href="/img/tiles/${esc(t.id)}.webp" x="${-w / 2}" y="${f(-h / 2)}" width="${w}" height="${h}" loading="lazy" decoding="async"${rotate}/></g>`,
   );
-
-  for (const c of cells) {
-    const { t } = c;
-    const info = tiles[t.id];
-    const type = info?.type;
-    const homeSeat = seatAt.get(t.pos);
-    const seats = homeSeat ? [homeSeat] : slice.get(t.pos) ?? [];
-    const label = tileLabel(t, info, seats, homeSeat);
-    const cls = ["hex"];
-    if (homeSeat) cls.push("home");
-    else if (t.id === "0") cls.push("open");
-    else if (type === "hyperlane") cls.push("lane");
-    else if (type === "mecatol") cls.push("mecatol");
-    if (type === "red" || anomalyList(info).length) cls.push("red");
-    const hasArt = isArt && art.has(t.id);
-    if (hasArt) cls.push("pic");
-    const attrs = [
-      `class="${cls.join(" ")}"`,
-      `data-pos="${t.pos}"`,
-      seats.length ? `data-seats="${seats.join(" ")}"` : "",
-      `data-label="${esc(label)}"`,
-      homeSeat ? `role="button" tabindex="0" aria-pressed="false"` : `role="img"`,
-      `aria-label="${esc(label)}"`,
-      `transform="translate(${f(c.x * R)} ${f(c.y * R)})"`,
-    ].filter(Boolean);
-    out.push(`<g ${attrs.join(" ")}>`);
-    out.push(`<polygon class="face" points="${hexPoints(R * GAP)}"/>`);
-    if (hasArt) {
-      // Rotation is clockwise in 60-degree steps about the hex centre, which is the group's origin.
-      const rot = t.rotation ?? 0;
-      const w = 2 * R * GAP, h = f((w * 222) / 256);
-      out.push(
-        `<g clip-path="url(#hexclip)" pointer-events="none"><image href="/img/tiles/${esc(t.id)}.webp" x="${-w / 2}" y="${f(-h / 2)}" width="${w}" height="${h}" loading="lazy" decoding="async"${rot ? ` transform="rotate(${rot * 60})"` : ""}/></g>`,
-      );
-      out.push(`<polygon class="dim" points="${hexPoints(R * GAP)}"/>`);
-      if (!homeSeat && sharedPos.has(t.pos)) out.push(`<polygon class="shared-edge" points="${hexPoints(R * GAP * 0.88)}"/>`);
-      if (homeSeat) {
-        out.push(`<circle class="num-scrim" r="9.5"/>`, `<text class="seat-num" x="0" y="0">${homeSeat}</text>`);
-      }
-      out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
-      continue;
-    }
-    if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
-    if (!homeSeat && sharedPos.has(t.pos)) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
-
-    if (type === "hyperlane" && info.hyperlanes) {
-      for (const [a, b] of rotateLanes(info.hyperlanes, t.rotation ?? 0)) {
-        const m = (e) => {
-          const p = hexToPixel(DIRS[e][0], DIRS[e][1]);
-          return `${f((p.x * R) / 2)} ${f((p.y * R) / 2)}`;
-        };
-        out.push(`<path class="lane-line" d="M${m(a)} Q0 0 ${m(b)}"/>`);
-      }
-    } else if (homeSeat) {
-      // A small faction symbol above the numeral when we have one; the numeral stays the main thing.
-      const sym = symbols[factionId(info?.faction)];
-      if (sym) {
-        const S = 9;
-        out.push(sym.replace(/<svg\s/, `<svg class="fsym-map" x="${-S / 2}" y="-15" width="${S}" height="${S}" `));
-      }
-      out.push(`<text class="seat-num" x="0" y="${sym ? 4 : 0}">${homeSeat}</text>`);
-    } else if (t.id !== "0") {
-      const planets = planetsOf(info);
-      const anoms = anomalyList(info);
-      const worms = info?.wormholes ?? [];
-      const n = planets.length;
-      const top = worms.length ? -((n - 1) * 3.6) - 2.5 : -((n - 1) * 3.75);
-      planets.forEach((p, i) => {
-        const y = f(top + i * 7.5);
-        const techs = techOf(p);
-        out.push(
-          `<g class="planet" transform="translate(0 ${y})">`,
-          `<text class="pr" x="-2" y="0" text-anchor="end">${p.resources}</text>`,
-          `<text class="pi" x="2" y="0" text-anchor="start">${p.influence}</text>`,
-        );
-        techs.forEach((tc, k) => out.push(`<circle class="skip skip-${esc(tc)}" cx="${f(-9 - k * 4)}" cy="-1.9" r="1.7"/>`));
-        if (p.legendary) out.push(`<polygon class="legend" points="10,-4.4 12.2,-1.9 10,0.6 7.8,-1.9"/>`);
-        out.push(`</g>`);
-      });
-      if (anoms.length) {
-        const sorted = [...anoms].sort((a, b) => (STRICT.indexOf(a) + 9) % 9 - (STRICT.indexOf(b) + 9) % 9);
-        const scale = n ? 0.6 : anoms.length > 1 ? 0.75 : 1.15;
-        const dy = n ? (planets.length > 1 ? -12 : -10) : worms.length ? -3 : 0;
-        sorted.forEach((a, i) => {
-          const dx = (i - (sorted.length - 1) / 2) * 12 * scale * 1.2;
-          out.push(`<g class="glyph" transform="translate(${f(dx)} ${dy}) scale(${scale})">${glyph(a)}</g>`);
-        });
-      }
-      if (worms.length) {
-        const txt = worms.map((w) => GREEK[w] ?? w).join(" ");
-        out.push(`<text class="worm" x="0" y="${n || anoms.length ? 13.5 : 3}">${esc(txt)}</text>`);
-      }
-    }
-    out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`);
-    out.push(`</g>`);
+  out.push(`<polygon class="dim" points="${hexPoints(R * GAP)}"/>`);
+  if (shared) out.push(`<polygon class="shared-edge" points="${hexPoints(R * GAP * 0.88)}"/>`);
+  if (homeSeat) {
+    out.push(`<circle class="num-scrim" r="9.5"/>`, `<text class="seat-num" x="0" y="0">${homeSeat}</text>`);
   }
-  out.push(`</svg>`);
-  return out.join("");
+  out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
+  return out;
+}
+
+function laneLines(info, t) {
+  return rotateLanes(info.hyperlanes, t.rotation ?? 0).map(([a, b]) => {
+    const m = (e) => {
+      const p = hexToPixel(DIRS[e][0], DIRS[e][1]);
+      return `${f((p.x * R) / 2)} ${f((p.y * R) / 2)}`;
+    };
+    return `<path class="lane-line" d="M${m(a)} Q0 0 ${m(b)}"/>`;
+  });
+}
+
+function homeMarks(info, homeSeat, symbols) {
+  const out = [];
+  // A small faction symbol above the numeral when we have one; the numeral stays the main thing.
+  const sym = symbols[factionId(info?.faction)];
+  if (sym) {
+    const S = 9;
+    out.push(sym.replace(/<svg\s/, `<svg class="fsym-map" x="${-S / 2}" y="-15" width="${S}" height="${S}" `));
+  }
+  out.push(`<text class="seat-num" x="0" y="${sym ? 4 : 0}">${homeSeat}</text>`);
+  return out;
+}
+
+// Planets (resources / influence, skips, legendary), anomaly glyphs and wormholes.
+function systemMarks(info) {
+  const out = [];
+  const planets = planetsOf(info);
+  const anoms = anomalyList(info);
+  const worms = info?.wormholes ?? [];
+  const n = planets.length;
+  const top = worms.length ? -((n - 1) * 3.6) - 2.5 : -((n - 1) * 3.75);
+  planets.forEach((p, i) => {
+    const y = f(top + i * 7.5);
+    const techs = techOf(p);
+    out.push(
+      `<g class="planet" transform="translate(0 ${y})">`,
+      `<text class="pr" x="-2" y="0" text-anchor="end">${p.resources}</text>`,
+      `<text class="pi" x="2" y="0" text-anchor="start">${p.influence}</text>`,
+    );
+    techs.forEach((tc, k) => out.push(`<circle class="skip skip-${esc(tc)}" cx="${f(-9 - k * 4)}" cy="-1.9" r="1.7"/>`));
+    if (p.legendary) out.push(`<polygon class="legend" points="10,-4.4 12.2,-1.9 10,0.6 7.8,-1.9"/>`);
+    out.push(`</g>`);
+  });
+  if (anoms.length) {
+    const sorted = [...anoms].sort((a, b) => (STRICT.indexOf(a) + 9) % 9 - (STRICT.indexOf(b) + 9) % 9);
+    const scale = anomalyScale(n, anoms.length);
+    const dy = anomalyShift(n, worms.length);
+    sorted.forEach((a, i) => {
+      const dx = (i - (sorted.length - 1) / 2) * 12 * scale * 1.2;
+      out.push(`<g class="glyph" transform="translate(${f(dx)} ${dy}) scale(${scale})">${glyph(a)}</g>`);
+    });
+  }
+  if (worms.length) {
+    const txt = worms.map((w) => GREEK[w] ?? w).join(" ");
+    out.push(`<text class="worm" x="0" y="${n || anoms.length ? 13.5 : 3}">${esc(txt)}</text>`);
+  }
+  return out;
+}
+
+function anomalyScale(planetCount, anomalyCount) {
+  if (planetCount) return 0.6;
+  return anomalyCount > 1 ? 0.75 : 1.15;
+}
+
+function anomalyShift(planetCount, wormCount) {
+  if (planetCount) return planetCount > 1 ? -12 : -10;
+  return wormCount ? -3 : 0;
 }

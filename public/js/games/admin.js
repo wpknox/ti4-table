@@ -10,13 +10,17 @@ import { tabs, dayShort, dayLong, errorBlock, sym } from "./ui.js";
 import { guard, codeBlock } from "./view.js";
 
 const notAdmin = (main, me) => {
-  main.innerHTML = `<div class="games-page">${tabs("", me)}<h1>Admins only</h1><p>${me ? "This page is for the admin." : `<a href="/games/join">Sign in</a> as the admin to see it.`}</p></div>`;
+  const why = me ? "This page is for the admin." : `<a href="/games/join">Sign in</a> as the admin to see it.`;
+  main.innerHTML = `<div class="games-page">${tabs("", me)}<h1>Admins only</h1><p>${why}</p></div>`;
 };
+
+const ROLE_LABEL = { none: "Can't sign in", editor: "Editor", admin: "Admin" };
 
 const ago = (iso) => {
   if (!iso) return "never";
   const days = Math.floor((Date.now() - Date.parse(iso)) / 86400000);
-  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+  if (days <= 0) return "today";
+  return days === 1 ? "yesterday" : `${days} days ago`;
 };
 
 // ── Friends ────────────────────────────────────────────────────────────────
@@ -93,13 +97,16 @@ export function renderAdmin(env) {
   });
 }
 
+const archiveButton = (p) =>
+  `<button type="button" class="btn" data-act="archive" data-to="${p.archived ? 0 : 1}">${p.archived ? "Restore friend" : "Archive friend"}</button>`;
+
 function friendHtml(p, me) {
   const mine = p.id === me.id;
   return `<li data-id="${p.id}"${p.archived ? ' class="archived"' : ""}>
     <div class="fhead"><strong>${esc(p.name)}</strong>${mine ? ' <span class="muted">(you)</span>' : ""}${p.archived ? ' <span class="muted">archived</span>' : ""}</div>
     <p class="muted fmeta">${esc(plural(p.sessions, "signed-in device"))}, last seen ${esc(ago(p.last_seen))}</p>
     <div class="frow">
-      <label>Role <select class="role"${mine ? " disabled" : ""}>${["none", "editor", "admin"].map((r) => `<option value="${r}"${p.role === r ? " selected" : ""}>${r === "none" ? "Can't sign in" : r === "editor" ? "Editor" : "Admin"}</option>`).join("")}</select></label>
+      <label>Role <select class="role"${mine ? " disabled" : ""}>${["none", "editor", "admin"].map((r) => `<option value="${r}"${p.role === r ? " selected" : ""}>${ROLE_LABEL[r]}</option>`).join("")}</select></label>
     </div>
     ${p.archived ? "" : `<div class="frow">
       <label class="visually-hidden" for="inv-${p.id}">Role for the invite code</label>
@@ -107,7 +114,7 @@ function friendHtml(p, me) {
       <button type="button" class="btn" data-act="invite">Make invite code</button>
     </div><div class="inv-out" aria-live="polite"></div>`}
     <div class="frow">
-      ${mine ? "" : `<button type="button" class="btn" data-act="archive" data-to="${p.archived ? 0 : 1}">${p.archived ? "Restore friend" : "Archive friend"}</button>`}
+      ${mine ? "" : archiveButton(p)}
       <button type="button" class="btn" data-act="signout"${p.sessions ? "" : " disabled"}>Sign out everywhere</button>
     </div>
   </li>`;

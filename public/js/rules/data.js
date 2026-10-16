@@ -74,38 +74,35 @@ function numberLink(li, id, label) {
   li.prepend(a);
 }
 
-// Turns the CSS counters tirules uses (".lrr > li:before { content: '58.' … }")
-// into real numbered links, then drops the page's <style> tags so they can't
-// leak onto the rest of the site.
-function annotate(root, page) {
-  const num = page.html.match(/content:\s*'(\d+)\.'\s*counter\(item/)?.[1] ?? null;
-  const startAt = Number(page.html.match(/\.lrr\s*\{\s*counter-reset:\s*item\s+(\d+)/)?.[1] ?? 0);
-  page.number = num;
-  const numbered = [];
+// LRR paragraphs: 58.3, then 58.3a / 58.3i for sub-lists.
+function numberLrr(root, num, startAt, numbered) {
+  for (const lrr of root.querySelectorAll("ol.lrr")) numberLrrList(lrr, num, startAt, numbered);
+}
 
-  for (const lrr of root.querySelectorAll("ol.lrr")) {
-    let n = startAt,
-      top = null,
-      sub = 0,
-      lastOl = null;
-    for (const li of lrr.querySelectorAll(":scope > li, :scope > h2 > li, :scope > ol > li")) {
-      const parent = li.parentElement;
-      if (parent === lrr || parent.nodeName === "H2") {
-        n++;
-        top = num ? `${num}.${n}` : String(n);
-        numberLink(li, top, top);
-        numbered.push({ li, id: top, label: top });
-      } else if (top) {
-        if (parent !== lastOl) (lastOl = parent), (sub = 0);
-        sub++;
-        const id = top + (parent.classList.contains("roman") ? romanLower(sub) : alpha(sub));
-        numberLink(li, id, id.slice(top.length));
-        numbered.push({ li, id, label: id });
-      }
+function numberLrrList(lrr, num, startAt, numbered) {
+  let n = startAt,
+    top = null,
+    sub = 0,
+    lastOl = null;
+  for (const li of lrr.querySelectorAll(":scope > li, :scope > h2 > li, :scope > ol > li")) {
+    const parent = li.parentElement;
+    if (parent === lrr || parent.nodeName === "H2") {
+      n++;
+      top = num ? `${num}.${n}` : String(n);
+      numberLink(li, top, top);
+      numbered.push({ li, id: top, label: top });
+    } else if (top) {
+      if (parent !== lastOl) (lastOl = parent), (sub = 0);
+      sub++;
+      const id = top + (parent.classList.contains("roman") ? romanLower(sub) : alpha(sub));
+      numberLink(li, id, id.slice(top.length));
+      numbered.push({ li, id, label: id });
     }
   }
+}
 
-  // Notes restart their roman numerals under each section heading.
+// Notes restart their roman numerals under each section heading.
+function numberNotes(root, numbered) {
   let section = "notes",
     count = 0,
     parentId = null,
@@ -134,6 +131,18 @@ function annotate(root, page) {
       numbered.push({ li: el, id, label: greek(sub) });
     }
   }
+}
+
+// Turns the CSS counters tirules uses (".lrr > li:before { content: '58.' … }")
+// into real numbered links, then drops the page's <style> tags so they can't
+// leak onto the rest of the site.
+function annotate(root, page) {
+  const num = page.html.match(/content:\s*'(\d+)\.'\s*counter\(item/)?.[1] ?? null;
+  const startAt = Number(page.html.match(/\.lrr\s*\{\s*counter-reset:\s*item\s+(\d+)/)?.[1] ?? 0);
+  page.number = num;
+  const numbered = [];
+  numberLrr(root, num, startAt, numbered);
+  numberNotes(root, numbered);
 
   for (const s of root.querySelectorAll("style")) s.remove();
   return numbered;

@@ -231,9 +231,17 @@ class Form {
     });
     const tie = $("#tie", this.form);
     if (w.tied) {
-      tie.textContent = `${w.tied.length === 2 ? "Two seats are" : `${w.tied.length} seats are`} tied on ${w.points}. Pick the winner.`;
+      const who = w.tied.length === 2 ? "Two seats are" : `${w.tied.length} seats are`;
+      tie.textContent = `${who} tied on ${w.points}. Pick the winner.`;
       tie.hidden = false;
     } else tie.hidden = true;
+  }
+
+  saveErrorText(err) {
+    if (err.offline) return "You're offline, so the game isn't saved yet. Everything you entered is kept. Save again when you're back online.";
+    if (err.status === 401) return "Your sign-in has expired. Sign in again, then come back. What you entered is kept on this phone.";
+    if (err.status === 403 && this.editId) return "You can only edit games you created or played in.";
+    return err.message;
   }
 
   // ── Events ──
@@ -246,22 +254,27 @@ class Form {
     this.bindCombos();
   }
 
+  // The +/- buttons for points to win and for each seat's points.
+  onStep(t) {
+    const key = t.closest(".stepper").dataset.step;
+    const d = Number(t.dataset.d);
+    if (key === "ptw") {
+      this.st.points_to_win = Math.min(20, Math.max(4, this.st.points_to_win + d));
+      $(".stepnum", t.closest(".stepper")).textContent = this.st.points_to_win;
+    } else {
+      const seat = this.seat(key.slice(4));
+      seat.points = Math.min(30, Math.max(0, seat.points + d));
+      $(".stepnum", t.closest(".stepper")).textContent = seat.points;
+      this.updateWinner();
+    }
+    this.persist();
+  }
+
   onClick(e) {
     const t = e.target.closest("button, input[type=radio]");
     if (!t) return;
     if (t.matches(".step")) {
-      const key = t.closest(".stepper").dataset.step;
-      const d = Number(t.dataset.d);
-      if (key === "ptw") {
-        this.st.points_to_win = Math.min(20, Math.max(4, this.st.points_to_win + d));
-        $(".stepnum", t.closest(".stepper")).textContent = this.st.points_to_win;
-      } else {
-        const seat = this.seat(key.slice(4));
-        seat.points = Math.min(30, Math.max(0, seat.points + d));
-        $(".stepnum", t.closest(".stepper")).textContent = seat.points;
-        this.updateWinner();
-      }
-      this.persist();
+      this.onStep(t);
     } else if (t.matches("[data-win]")) {
       this.st.winner = t.dataset.win;
       this.updateWinner();
@@ -362,7 +375,10 @@ class Form {
       let active = -1;
       let items = [];
 
-      const current = () => (kind === "player" ? seat().player_name : seat().faction ? factionName(seat().faction) : "");
+      const current = () => {
+        if (kind === "player") return seat().player_name;
+        return seat().faction ? factionName(seat().faction) : "";
+      };
       const options = () => {
         const q = dirty ? input.value.trim().toLowerCase() : "";
         if (kind === "player") {
@@ -412,12 +428,22 @@ class Form {
       input.addEventListener("focus", () => { input.select(); show(); });
       input.addEventListener("input", () => { dirty = true; show(); });
       input.addEventListener("blur", () => setTimeout(hide, 120));
+      // Enter picks the highlighted row, or the only/first real match if the person has typed.
+      const enterIndex = () => {
+        if (active >= 0) return active;
+        const firstIsReal = dirty && items[0] && !items[0].hint && !items[0].add;
+        return items.length === 1 || firstIsReal ? 0 : -1;
+      };
       input.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowDown") { e.preventDefault(); if (list.hidden) show(); mark(Math.min(items.length - 1, active + 1)); }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          if (list.hidden) show();
+          mark(Math.min(items.length - 1, active + 1));
+        }
         else if (e.key === "ArrowUp") { e.preventDefault(); mark(Math.max(0, active - 1)); }
         else if (e.key === "Enter" && !list.hidden) {
           e.preventDefault();
-          const o = items[active >= 0 ? active : items.length === 1 || (dirty && items[0] && !items[0].hint && !items[0].add) ? 0 : -1];
+          const o = items[enterIndex()];
           if (o) { o.pick(); dirty = false; list.hidden = true; }
         } else if (e.key === "Escape") { hide(); }
       });
@@ -538,12 +564,7 @@ class Form {
       this.saving = false;
       btn.disabled = false;
       btn.textContent = "Save game";
-      this.showError(
-        err.offline ? "You're offline, so the game isn't saved yet. Everything you entered is kept. Save again when you're back online."
-        : err.status === 401 ? "Your sign-in has expired. Sign in again, then come back. What you entered is kept on this phone."
-        : err.status === 403 && this.editId ? "You can only edit games you created or played in."
-        : err.message,
-      );
+      this.showError(this.saveErrorText(err));
     }
   }
 }

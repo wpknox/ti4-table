@@ -34,6 +34,20 @@ async function validate(body, db, { creating }) {
     }
     g.client_id = body.client_id;
   }
+  validateGameFields(body, g);
+  const players = validateSeats(body.seats, g);
+
+  // Players must exist (the foreign key would fail with a vaguer error).
+  const ids = [...players];
+  const { results } = await db.prepare(
+    "SELECT id FROM players WHERE id IN (SELECT value FROM json_each(?))"
+  ).bind(JSON.stringify(ids)).all();
+  if (results.length !== ids.length) throw bad("One of the players doesn't exist.");
+  return g;
+}
+
+// Date, points and expansions, copied onto `g`.
+function validateGameFields(body, g) {
   if (!validDate(body.played_on)) throw bad("Played on needs a date like 2026-10-11.");
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   if (body.played_on > tomorrow) throw bad("That date is in the future.");
@@ -48,6 +62,11 @@ async function validate(body, db, { creating }) {
     g[key] = v ? 1 : 0;
   }
 
+  validateExtras(body, g);
+}
+
+// Map string, TI Assistant link and notes.
+function validateExtras(body, g) {
   g.map_string = body.map_string ?? null;
   if (g.map_string !== null && (typeof g.map_string !== "string" || g.map_string.length > 2000)) {
     throw bad("The map string is too long.");
@@ -59,45 +78,47 @@ async function validate(body, db, { creating }) {
   }
   g.notes = body.notes ?? "";
   if (typeof g.notes !== "string" || g.notes.length > 4000) throw bad("Notes can be up to 4,000 characters.");
+}
 
-  const seats = body.seats;
+// Sets g.seats and returns the set of player ids.
+function validateSeats(seats, g) {
   if (!Array.isArray(seats) || seats.length < 3 || seats.length > 8) throw bad("A game needs 3 to 8 seats.");
-  const players = new Set(), factions = new Set(), indexes = new Set();
+  const seen = { players: new Set(), factions: new Set(), indexes: new Set() };
   let winners = 0, speakers = 0;
   g.seats = seats.map((s) => {
-    if (!s || typeof s !== "object") throw bad("Each seat must be an object.");
-    if (!isInt(s.player_id)) throw bad("Each seat needs a player.");
-    if (players.has(s.player_id)) throw bad("A player can only have one seat.");
-    players.add(s.player_id);
-    if (typeof s.faction !== "string" || !FACTIONS.has(s.faction)) throw bad("Unknown faction.");
-    if (factions.has(s.faction)) throw bad("A faction can only be used once.");
-    factions.add(s.faction);
-    const color = s.color ?? null;
-    if (color !== null && (typeof color !== "string" || color.length > 20)) throw bad("Colour is too long.");
-    const seat_index = s.seat_index ?? null;
-    if (seat_index !== null) {
-      if (!isInt(seat_index) || seat_index < 0 || seat_index > 7) throw bad("Seat position must be 0 to 7.");
-      if (indexes.has(seat_index)) throw bad("Two seats can't share a position.");
-      indexes.add(seat_index);
-    }
-    if (!isInt(s.points) || s.points < 0 || s.points > 30) throw bad("Points must be a whole number from 0 to 30.");
-    const win = s.is_winner ?? false, spk = s.is_speaker_start ?? false;
-    if (typeof win !== "boolean" || typeof spk !== "boolean") throw bad("is_winner and is_speaker_start must be true or false.");
-    if (win) winners++;
-    if (spk) speakers++;
-    return { player_id: s.player_id, faction: s.faction, color, seat_index, points: s.points,
-      is_winner: win ? 1 : 0, is_speaker_start: spk ? 1 : 0 };
+    const seat = validateSeat(s, seen);
+    if (seat.is_winner) winners++;
+    if (seat.is_speaker_start) speakers++;
+    return seat;
   });
   if (winners !== 1) throw bad("Exactly one seat must be the winner.");
   if (speakers > 1) throw bad("Only one seat can be the starting speaker.");
+  return seen.players;
+}
 
-  // Players must exist (the foreign key would fail with a vaguer error).
-  const ids = [...players];
-  const { results } = await db.prepare(
-    "SELECT id FROM players WHERE id IN (SELECT value FROM json_each(?))"
-  ).bind(JSON.stringify(ids)).all();
-  if (results.length !== ids.length) throw bad("One of the players doesn't exist.");
-  return g;
+function checkSeatIndex(seat_index, indexes) {
+  if (!isInt(seat_index) || seat_index < 0 || seat_index > 7) throw bad("Seat position must be 0 to 7.");
+  if (indexes.has(seat_index)) throw bad("Two seats can't share a position.");
+  indexes.add(seat_index);
+}
+
+function validateSeat(s, { players, factions, indexes }) {
+  if (!s || typeof s !== "object") throw bad("Each seat must be an object.");
+  if (!isInt(s.player_id)) throw bad("Each seat needs a player.");
+  if (players.has(s.player_id)) throw bad("A player can only have one seat.");
+  players.add(s.player_id);
+  if (typeof s.faction !== "string" || !FACTIONS.has(s.faction)) throw bad("Unknown faction.");
+  if (factions.has(s.faction)) throw bad("A faction can only be used once.");
+  factions.add(s.faction);
+  const color = s.color ?? null;
+  if (color !== null && (typeof color !== "string" || color.length > 20)) throw bad("Colour is too long.");
+  const seat_index = s.seat_index ?? null;
+  if (seat_index !== null) checkSeatIndex(seat_index, indexes);
+  if (!isInt(s.points) || s.points < 0 || s.points > 30) throw bad("Points must be a whole number from 0 to 30.");
+  const win = s.is_winner ?? false, spk = s.is_speaker_start ?? false;
+  if (typeof win !== "boolean" || typeof spk !== "boolean") throw bad("is_winner and is_speaker_start must be true or false.");
+  return { player_id: s.player_id, faction: s.faction, color, seat_index, points: s.points,
+    is_winner: win ? 1 : 0, is_speaker_start: spk ? 1 : 0 };
 }
 
 // ── Statements ───

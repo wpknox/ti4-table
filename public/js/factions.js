@@ -61,8 +61,11 @@ export function loadSymbol(id) {
 export const symbolSync = (id) => cache.get(id) ?? "";
 
 // Placeholder markup for a faction id (or null).
-export const symbolSlot = (id, cls = "") =>
-  id ? `<span class="fsym${cls ? " " + cls : ""}" data-faction="${id}"></span>` : "";
+export const symbolSlot = (id, cls = "") => {
+  if (!id) return "";
+  const extra = cls ? " " + cls : "";
+  return `<span class="fsym${extra}" data-faction="${id}"></span>`;
+};
 
 // Fills every empty placeholder under `root`.
 export async function hydrateSymbols(root) {
