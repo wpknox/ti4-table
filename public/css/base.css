@@ -230,3 +230,50 @@ main:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ── Space backdrop (dark theme only) ─────────────────────────────────── */
+
+/* A fixed-height layer behind the masthead and the top of the page, faded
+   into --void by the mask. Home screens get 240px; reading views get just
+   the masthead, so rule text, reports and forms sit on plain --void. */
+:root { --sky: url("/img/space/deep-field.webp"); --sky-h: 240px; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --sky: none; } }
+:root[data-theme="light"] { --sky: none; }
+body { position: relative; }
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--sky-h);
+  z-index: -1;
+  background: var(--sky) center top / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+  pointer-events: none;
+}
+body:has(.rpage, .results, .empty, .map-result, .about) { --sky-h: 72px; }
+
+/* ── Faction symbols ──────────────────────────────────────────────────── */
+
+.fsym { display: inline-block; flex: none; width: 1.25em; height: 1.25em; vertical-align: -0.18em; margin-right: 0.45em; }
+.fsym:empty { background: none; }
+.fsym svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.index .fsym { align-self: center; color: var(--dust); margin-right: 0; }
+.seat-pick .fsym { color: var(--dust); }
+
+/* ── Site footer and About ────────────────────────────────────────────── */
+
+.site-foot {
+  max-width: calc(var(--measure) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 8px var(--gutter) calc(env(safe-area-inset-bottom) + 32px);
+  color: var(--dust);
+  font-size: var(--t-xs);
+}
+.site-foot p { margin: 0; }
+
+.about { max-width: calc(var(--measure) + 2 * var(--gutter)); margin: 0 auto; padding: 8px var(--gutter) 24px; }
+.about h1 { margin: 28px 0 12px; font: 700 var(--t-2xl)/1.1 var(--display); font-stretch: 116%; }
+.about h2 { margin: 1.8em 0 0.4em; font: 600 var(--t-l)/1.2 var(--display); font-stretch: 110%; }
+.about p, .about li { max-width: 40rem; }
+.about ul { padding-left: 1.2em; }

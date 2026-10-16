@@ -312,3 +312,17 @@ mark.current { background: var(--current); color: var(--mark-ink); box-shadow: 0
 
 .loading { margin-top: 24px; }
 .notfound, .page-error { max-width: var(--measure); margin: 40px auto; padding: 0 var(--gutter); }
+
+/* ── Faction page symbol ──────────────────────────────────────────────── */
+
+.rpage { position: relative; }
+.rpage.has-fsym .rbody > header { padding-right: 64px; }
+.fsym-page {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  color: var(--resource);
+}

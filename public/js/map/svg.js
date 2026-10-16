@@ -6,6 +6,7 @@
 // Units: one hex radius is R. Flat-top hexes, as the parser uses.
 
 import { DIRS, hexToPixel, rotateLanes } from "./parse.js";
+import { factionId } from "../factions.js";
 
 const R = 20;
 const GAP = 0.95; // drawn size vs. grid size, so neighbours don't touch
@@ -90,9 +91,10 @@ export function tileLabel(tile, info, seats, homeSeat) {
  * @param {object} parsed  parseMapString() result
  * @param {object} report  analyze() result
  * @param {object} tiles   tiles.json `tiles`
+ * @param {object} [opts.symbols]  faction id -> inline <svg> markup (from factions.js); absent in Node
  * @returns {string} an <svg> element
  */
-export function renderMapSvg(parsed, report, tiles, { title = "Map" } = {}) {
+export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {} } = {}) {
   const seatAt = new Map(parsed.homes.map((pos, i) => [pos, i + 1]));
   const slice = new Map(); // pos -> seat numbers
   const sharedPos = new Set();
@@ -156,7 +158,13 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map" } = {}) {
         out.push(`<path class="lane-line" d="M${m(a)} Q0 0 ${m(b)}"/>`);
       }
     } else if (homeSeat) {
-      out.push(`<text class="seat-num" x="0" y="0">${homeSeat}</text>`);
+      // A small faction symbol above the numeral when we have one; the numeral stays the main thing.
+      const sym = symbols[factionId(info?.faction)];
+      if (sym) {
+        const S = 9;
+        out.push(sym.replace(/<svg\s/, `<svg class="fsym-map" x="${-S / 2}" y="-15" width="${S}" height="${S}" `));
+      }
+      out.push(`<text class="seat-num" x="0" y="${sym ? 4 : 0}">${homeSeat}</text>`);
     } else if (t.id !== "0") {
       const planets = planetsOf(info);
       const anoms = anomalyList(info);

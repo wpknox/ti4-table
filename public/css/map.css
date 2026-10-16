@@ -116,3 +116,6 @@
   .map-form textarea { height: 76px; }
   .seats { margin-top: 12px; }
 }
+
+/* Faction symbol above the seat numeral on a home hex. */
+.mapsvg .fsym-map { color: var(--dust); fill: currentColor; pointer-events: none; overflow: visible; }

@@ -3,9 +3,11 @@
 import { addSection, start } from "./router.js";
 import { renderRules } from "./rules/view.js";
 import { renderMap } from "./map/view.js";
+import { renderAbout } from "./about.js";
 
 addSection({ prefix: "/rules", label: "Rules", render: renderRules });
 addSection({ prefix: "/map", label: "Map", render: renderMap });
+addSection({ prefix: "/about", label: "About", render: renderAbout, nav: false });
 
 start();
 

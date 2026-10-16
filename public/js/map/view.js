@@ -9,6 +9,7 @@ import { navigate, setUrl } from "../router.js";
 import { parseMapString } from "./parse.js";
 import { analyze, describe } from "./analyze.js";
 import { renderMapSvg } from "./svg.js";
+import { factionId, loadSymbol, symbolSync, symbolSlot, hydrateSymbols } from "../factions.js";
 
 // SCPT 2021 Final, a known-good 6-player map (copied from scripts/fixtures/maps.mjs).
 const EXAMPLE =
@@ -97,6 +98,11 @@ export async function renderMap(url, main, ctx) {
     return;
   }
   const report = analyze(parsed, tiles);
+  // Preload the symbols this map needs, so renderMapSvg stays synchronous and pure.
+  const ids = [...new Set(parsed.tiles.map((t) => factionId(tiles[t.id]?.faction)).filter(Boolean))];
+  await Promise.all(ids.map(loadSymbol));
+  if (ctx.stale()) return;
+  const symbols = Object.fromEntries(ids.map((id) => [id, symbolSync(id)]));
   const said = describe(report);
   const seat = seatParam >= 1 && seatParam <= report.seats.length ? seatParam : 0;
 
@@ -107,7 +113,7 @@ export async function renderMap(url, main, ctx) {
     <div class="map-left">
       <h1 class="verdict">${esc(said.verdict)}</h1>
       <p class="map-sub">${esc(plural(report.seats.length, "seat"))}, ${esc(plural(parsed.tiles.length, "tile"))}.</p>
-      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
+      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { symbols, title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
       <p class="tile-note" id="tile-note" aria-live="polite"></p>
     </div>
     <div class="map-right">
@@ -116,6 +122,7 @@ export async function renderMap(url, main, ctx) {
     </div>
   </div>`;
 
+  void hydrateSymbols(out);
   const svg = $("svg.mapsvg", out);
   const note = $("#tile-note", out);
   const hintText = "Tap a seat to see its slice.";
@@ -190,7 +197,7 @@ function seatBlock(s, data, report) {
   return `<article class="seat" data-seat="${s.seat}">
     <span class="seat-n" aria-hidden="true">${s.seat}</span>
     <div class="seat-body">
-      <h2><button class="seat-pick" type="button" aria-pressed="false">${faction ? `<span class="visually-hidden">Seat ${s.seat}. </span>${esc(faction)}` : `Seat ${s.seat}`}</button></h2>
+      <h2><button class="seat-pick" type="button" aria-pressed="false">${faction ? `<span class="visually-hidden">Seat ${s.seat}. </span>${symbolSlot(factionId(faction))}${esc(faction)}` : `Seat ${s.seat}`}</button></h2>
       <ul class="lines">${lines}</ul>
       <details><summary>Details</summary>${metricsTable(data, report)}</details>
     </div>

@@ -5,7 +5,7 @@
 //
 // Bump VERSION when the precache list changes. API calls are never cached.
 
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `ti4table-${VERSION}`;
 const PRECACHE = [
   "/",
@@ -16,6 +16,8 @@ const PRECACHE = [
   "/js/app.js",
   "/js/router.js",
   "/js/lib.js",
+  "/js/factions.js",
+  "/js/about.js",
   "/js/rules/data.js",
   "/js/rules/view.js",
   "/js/map/view.js",
@@ -29,6 +31,12 @@ const PRECACHE = [
   "/fonts/atkinson-italic.woff2",
   "/icons/icon.svg",
   "/manifest.webmanifest",
+  "/img/space/deep-field.webp",
+  ...[
+    "arborec", "argent", "bastion", "creuss", "deepwrought", "empyrean", "firmament", "hacan", "jol_nar",
+    "keleres", "letnev", "lizix", "mahact", "mentak", "muaat", "naalu", "naaz_rokha", "nekro", "nomad",
+    "norr", "obsidian", "ral_nel", "rebellion", "saar", "sol", "ul", "vuilraith", "winnu", "xxcha", "yin", "yssaril",
+  ].map((f) => `/img/factions/F_${f}.svg`),
 ];
 
 self.addEventListener("install", (e) => {

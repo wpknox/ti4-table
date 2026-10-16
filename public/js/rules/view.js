@@ -10,6 +10,7 @@
 
 import { $, $$, esc, plural, store, remember, toast } from "../lib.js";
 import { navigate, setUrl, back } from "../router.js";
+import { symbolSlot, hydrateSymbols } from "../factions.js";
 import {
   loadRules, search, compileQuery, pageMatches, placeAt, suggest, isRuleNumber, textOf,
 } from "./data.js";
@@ -198,6 +199,7 @@ function renderHome(view, rules) {
       </section>
       ${credits(rules)}
     </div>`;
+  void hydrateSymbols(view);
 }
 
 function browseItems(rules, kind) {
@@ -207,7 +209,7 @@ function browseItems(rules, kind) {
   return pages
     .map(
       (p) => `<li><a href="${pageUrl(p.id)}">
-        ${kind === "Rules" ? `<span class="n">${p.number ?? "—"}</span>` : ""}
+        ${kind === "Rules" ? `<span class="n">${p.number ?? "—"}</span>` : ""}${kind === "Factions" ? symbolSlot(p.id) : ""}
         <span class="t">${esc(p.title)}</span>${p.subtitle ? `<span class="sub">${esc(p.subtitle)}</span>` : ""}</a></li>`,
     )
     .join("");
@@ -356,8 +358,12 @@ function renderPage(view, rules, page, { q, mode, m, anchor, restoreScroll }) {
   remember("recentPages", page.id, MAX_RECENT_PAGES);
   state.page = page;
 
+  // The faction symbol sits outside .rbody: that is the only part the search
+  // index and the highlighter walk, and the slot is empty anyway.
+  const isFaction = page.kind === "Factions";
   view.innerHTML = `
-    <article class="rpage">
+    <article class="rpage${isFaction ? " has-fsym" : ""}">
+      ${isFaction ? symbolSlot(page.id, "fsym-page") : ""}
       <div class="rtools">
         <span class="spacer"></span>
         <button class="icon-btn" data-act="smaller" aria-label="Smaller text" title="Smaller text">A−</button>
@@ -368,6 +374,7 @@ function renderPage(view, rules, page, { q, mode, m, anchor, restoreScroll }) {
     </article>`;
   const body = $(".rbody", view);
   body.innerHTML = page.html;
+  void hydrateSymbols(view);
   // Attribute, not text: the big number must stay out of the indexed text.
   if (page.number) $(":scope > header", body)?.setAttribute("data-num", page.number);
 
@@ -605,6 +612,7 @@ function wire(shell) {
       const list = $(".index", shell);
       list.dataset.kind = t.dataset.tab;
       list.innerHTML = browseItems(state.rules, t.dataset.tab);
+      void hydrateSymbols(list);
       return;
     }
     if (t.classList.contains("suggestion")) hideSuggest();
