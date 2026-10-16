@@ -166,6 +166,19 @@ The date sits in the hanging gutter in `--resource` Saira. The second line is `-
 
 **Sign in.** One field: "Invite code". Set in Saira at 120% stretch with wide letter-spacing, and auto-formatted to `XXXXX-XXXXX` as you type. Don't use a monospace face: a mono label is a generated-UI tell, and Saira's tabular figures already line up. The help text says where the code comes from: "Ask [the admin] for a code. It works once."
 
+## Faction symbols and space imagery
+
+_Added 2026-10-15, after the owner approved the official faction symbols (`docs/research/assets.md`)._
+
+- **Faction symbols:** one monochrome symbol per faction (`public/img/factions/<F_id>.svg`), drawn in `currentColor` so they follow the theme. They're used at text size beside faction names:
+  - Rules faction index and faction pages
+  - Map home hexes, when the string names the faction
+  - the Games list and form
+
+  In the Games list, the winner's symbol is tinted `--resource`. They're never decoration on their own: a symbol always sits next to the faction's name or has it as its accessible label.
+- **Space backdrop:** the Hubble eXtreme Deep Field, darkened and cropped, sits behind the masthead and the top of each section's home screen only. It fades into `--void` within about 240px. It's dark theme only; the light theme stays plain. This is the one atmospheric touch. Reading surfaces (rule text, report, forms) are never over imagery.
+- **Credits:** a site-wide footer line says "Unofficial fan site. Not affiliated with or endorsed by Fantasy Flight Games or Asmodee." An "About and credits" page lists the image credit (verbatim, linked, with "darkened and cropped"), the faction symbols' owner, and the rules sources.
+
 ## Motion
 
 - Motion only responds to the user. Existing examples: the toast slides in; the current search match scrolls into view.

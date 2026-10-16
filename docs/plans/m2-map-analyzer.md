@@ -206,6 +206,37 @@ Expected for SYM:
 
 ### 2c: The page
 
+_2026-10-15: `docs/design.md` ("Map page (M2c)" and "Tokens") is the visual spec. It overrides this section where they differ. In particular:_
+- _Seats are **numbered, not coloured**._
+- _The selected seat's slice gets `--hull-2` fill and a `--star` outline. Shared systems are hatched._
+- _Findings use hex markers: warn is filled `--warn`, note is outlined `--dust`, good is outlined `--resource`._
+- _The verdict sentence is the page title._
+- _Anomaly glyphs are drawn line icons. Wormholes are Greek letters._
+- _A home hex shows the seat number, and the faction name goes in text. Official faction symbols were approved later (see `docs/design.md`, "Faction symbols and space imagery") and are added in a follow-up pass._
+
+**Build notes (added 2026-10-15):**
+- **Files:**
+  - `public/js/map/view.js`: render and events
+  - `public/js/map/svg.js`: map drawing, as a pure string builder so a check script can render it in Node
+  - `public/css/map.css`, linked in `index.html`
+  - register the section in `app.js`
+  - add every new file to `PRECACHE` and bump `VERSION` in `sw.js`
+
+  Load `tiles.json` with `fetch` once and cache it in the module.
+- **Data flow:** `parseMapString(str, { data: tiles })` → `analyze(parsed, tiles)` → `describe(report)`. Don't re-implement any maths in the view. Show parser `warnings` as a quiet, collapsed list under the input ("3 notes about this map string").
+- **URL state:** `/map?m=<string>&seat=<n>`, with `seat` optional. Back/forward restores both. Use the router's `setUrl` for seat changes, so every tap doesn't add a history entry.
+- **Example map:** `SCPT_2021_FINAL` from `scripts/fixtures/maps.mjs`. Copy the string; the site can't import from `scripts/`.
+- **Rule links:** report lines with `line.rule` link to `/rules/<id>`.
+- **Accessibility:**
+  - Each hex is a `<g>` with an `aria-label`, e.g. "Seat 3 home" or "Lodor, 3 resources 1 influence, alpha wormhole".
+  - Seats can also be selected by tapping a seat block in the report, and with the keyboard.
+  - The SVG has a `<title>`.
+- **Check:** a new `node scripts/check-map-svg.mjs` renders the SVG for every map in `MAPS` and checks that:
+  - it's well-formed (balanced tags)
+  - there's one hex per tile
+  - there's one seat numeral per home
+  - no attribute contains `NaN`
+
 Section `/map`: `addSection({ prefix: "/map", label: "Map", render })`. Once a second section exists, the router's nav shows automatically.
 
 - **Input:** a paste box for the map string, plus an "Example map" button that loads a known-good 6-player map. The map lives in the URL (`/map?m=<string>`) so a link shares it. Save the last 5 analysed maps in `store` (localStorage) as a convenience.

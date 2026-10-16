@@ -4,6 +4,18 @@ Research for the "more space-themed, show off" pass: faction icons, space imager
 
 This is a licence reading, not legal advice. "Confirmed" means I read the primary page or licence file. "Not confirmed" is called out.
 
+## Owner decision (2026-10-15)
+
+**Use the official faction symbols** (option a). The site is free, has no ads or donations, and is a website at heart. The owner accepts the small, known risk of a takedown request.
+
+Conditions we keep, from the fan policy:
+- credit Twilight Imperium and Fantasy Flight Games next to the artwork, or in a credits block on the same screen
+- a visible "unofficial fan site, not affiliated with or endorsed by Fantasy Flight Games or Asmodee" line site-wide
+- never charge, take donations or run ads
+- remove the art promptly if asked
+
+The space imagery follows the CC BY plan below. Our own glyphs are still used for traits, tech skips, wormholes and anomalies, which keeps the map's colour language ours.
+
 ## TL;DR
 
 1. **Faction icons: draw our own (option c).** Asmodee's fan policy lets a *fan-dedicated website* use game art if it is non-commercial, credited and labelled unofficial, but it says in plain words that it "is not a license", that they can make you stop "for any reason", and "Do NOT make Apps". Our site is installable and offline, which sits near that line. I found **no community faction-icon set with an explicit licence**. Every public set (TI Assistant's, AsyncTI4's, TTPG's, a 700 KB "TI4 Icons" SVG on GitHub) is either unlicensed or carves out art. So: simple original glyphs per faction (monogram or abstract mark in the faction's own accent), designed so official symbols could be dropped in later. Option (a) is the fallback if the owner accepts a small, known risk; exact attribution text is in the details.
