@@ -1,0 +1,157 @@
+{
+  "F_arborec": {
+    "file": "F_arborec.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_argent": {
+    "file": "F_argent.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_bastion": {
+    "file": "F_bastion.svg",
+    "source": "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/factions/bastion.png",
+    "notes": "Traced with potrace from the full-colour AsyncTI4 faction image (bastion.png, 512-720 px), thresholded to a flat silhouette. Silhouette of the spiked disc with its diagonal slash; inner glow detail dropped. Raster-derived, so edges are slightly rounded. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_creuss": {
+    "file": "F_creuss.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_deepwrought": {
+    "file": "F_deepwrought.svg",
+    "source": "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/factions/deepwrought.png",
+    "notes": "Traced with potrace from the full-colour AsyncTI4 faction image (deepwrought.png, 512-720 px), thresholded to a flat silhouette. Silhouette of the split oval with the three dots and bar. Raster-derived, so edges are slightly rounded. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_empyrean": {
+    "file": "F_empyrean.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_firmament": {
+    "file": "F_firmament.svg",
+    "source": "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/factions/firmament.png",
+    "notes": "Traced with potrace from the full-colour AsyncTI4 faction image (firmament.png, 512-720 px), thresholded to a flat silhouette. Eight-petal interlaced rose; the dark outlines in the source become gaps. Raster-derived, so edges are slightly rounded. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_hacan": {
+    "file": "F_hacan.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_jol_nar": {
+    "file": "F_jol_nar.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_keleres": {
+    "file": "F_keleres.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. One generic Council Keleres symbol, shared by the three Keleres sub-factions (argent, mentak and xxcha variants in the game use the same emblem). Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_letnev": {
+    "file": "F_letnev.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_lizix": {
+    "file": "F_lizix.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_mahact": {
+    "file": "F_mahact.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_mentak": {
+    "file": "F_mentak.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_muaat": {
+    "file": "F_muaat.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_naalu": {
+    "file": "F_naalu.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_naaz_rokha": {
+    "file": "F_naaz_rokha.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_nekro": {
+    "file": "F_nekro.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_nomad": {
+    "file": "F_nomad.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Larger than the others (about 8 KB) because of the orbit rings. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_norr": {
+    "file": "F_norr.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_obsidian": {
+    "file": "F_obsidian.svg",
+    "source": "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/factions/obsidian.png",
+    "notes": "Traced with potrace from the full-colour AsyncTI4 faction image (obsidian.png, 512-720 px), thresholded to a flat silhouette. Eye-in-rose shape; the dark outlines in the source become gaps. Raster-derived, so edges are slightly rounded. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_ral_nel": {
+    "file": "F_ral_nel.svg",
+    "source": "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/factions/ralnel.png",
+    "notes": "Traced with potrace from the full-colour AsyncTI4 faction image (ralnel.png, 512-720 px), thresholded to a flat silhouette. Silhouette of the leaf over the chevron. Raster-derived, so edges are slightly rounded. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_rebellion": {
+    "file": "F_rebellion.svg",
+    "source": "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/factions/crimson.png",
+    "notes": "Traced with potrace from the full-colour AsyncTI4 faction image (crimson.png, 512-720 px), thresholded to a flat silhouette. Source file is named crimson.png (Crimson Rebellion). Silhouette; the two small rings are kept. Raster-derived, so edges are slightly rounded. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_saar": {
+    "file": "F_saar.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_sol": {
+    "file": "F_sol.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. The thin divider line between the two circles is dropped, so it reads as two overlapping discs. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_ul": {
+    "file": "F_ul.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_vuilraith": {
+    "file": "F_vuilraith.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_winnu": {
+    "file": "F_winnu.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_xxcha": {
+    "file": "F_xxcha.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_yin": {
+    "file": "F_yin.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  },
+  "F_yssaril": {
+    "file": "F_yssaril.svg",
+    "source": "https://github.com/marshallcase/ti4-svg/blob/main/TI4%20Icons-4.svg.txt",
+    "notes": "Hand-traced vector from the marshallcase/ti4-svg sheet (white-on-black layer), cut out by grid cell, transforms baked in, rounded to half-units. Faction matched by comparing against the TTPG coloured icon."
+  }
+}
