@@ -52,37 +52,157 @@ Deliverables:
 
 ### 2b: Analysis engine (pure functions, no DOM)
 
-`public/js/map/analyze.js` exports `analyze(parsedMap, tiles) -> report`.
+_Tightened 2026-10-15 into a build spec. Every number in the fixtures below was hand-checked by the orchestrator._
 
-1. **Seats** are the home-system positions. Find them from the string (home tile ids or placeholders) and the player count.
-2. **Distance** is the number of moves from a home system, honouring:
-   - adjacency and wormholes (alpha↔alpha, beta↔beta)
-   - hyperlanes
-   - supernovas: impassable
-   - asteroid fields: impassable without Antimass Deflectors, so analyse as impassable and mention it
-   - nebulas: movement ends there, so count it as reachable but a dead end
-   - gravity rifts: +1 move when exiting. Treat as passable at normal cost, note "a gravity rift on this path", and keep it simple.
-   Rules text for each anomaly is in `public/data/rules.json` (R_supernova, R_asteroid_field, R_nebula, R_gravity_rift, R_wormholes, R_hyperlanes). Link to those pages from the report.
-3. **Slices**: each non-home, non-Mecatol system belongs to the seat it's closest to. Ties are "shared" between those seats, which are contested systems.
-4. **Metrics per seat** (slice plus shared systems at half weight):
-   - optimal resources and influence, Milty formula: the higher stat counts fully and the other counts as zero; if equal, half to each
-   - raw totals
-   - planet count
-   - tech skips by colour
-   - legendary planets
-   - wormholes
-   - anomalies in the slice
-   - moves to Mecatol Rex
-   - planets adjacent to home ("turn-one expansion")
-   - contested systems with each neighbour
-5. **Findings**: compare each seat with the table average. Emit structured findings (`{seat, severity: "good"|"note"|"warn", code, data}`), then turn them into sentences in a separate `describe()` so the wording can be tuned without touching the maths. Thresholds go at the top of the file as named constants, with a comment on why each value was chosen. Start with these (tune after a few real maps):
-   - optimal total more than 20% below or above the table mean
-   - zero tech skips within 2 moves
-   - Mecatol more than 1 move further than the best seat
-   - more than 2 anomalies in a slice
-   - a wormhole in the slice when other seats have none (note, not warning)
-   - legendary planet access
-   - fewer than 2 planets adjacent to home
+**Files to create or touch**
+- `public/js/map/analyze.js` (new): `analyze()`, `describe()`, the thresholds, and the movement graph. No DOM and no `fetch`, so Node can import it. Import geometry from `./parse.js` (`DIRS`, `hexDistance`, `rotateLanes`). Don't duplicate it.
+- `scripts/fixtures/maps.mjs` (new): export the `MAPS` array and `fillZeros()` currently inside `scripts/check-map.mjs`, plus the synthetic fixtures below. Change `check-map.mjs` to import them. Its output and pass/fail must not change.
+- `scripts/check-analysis.mjs` (new): the acceptance script. Run it with `node scripts/check-analysis.mjs`. Exit 1 on any failure. Use the same `check(ok, msg)` style as `check-map.mjs`.
+- Don't touch `parse.js`, `tiles.json`, the UI, `sw.js` or the rules code. If `parse.js` looks wrong, stop and report it instead of changing it.
+
+**Input.** `analyze(parsed, tiles)`, where `parsed` is the return value of `parseMapString(str, { data: tiles })` and `tiles` is the `tiles` object from `tiles.json`. Seats are `parsed.homes` (positions, in seat order, so seat N is `parsed.homes[N-1]`).
+
+#### Movement graph
+
+Nodes are the board's **systems**: every entry in `parsed.tiles` except hyperlane tiles (`tiles[id].type === "hyperlane"`). Open slots (`id === "0"`) are systems with no planets. Two systems are adjacent if:
+1. **Neighbouring hexes:** their hexes are neighbours (one `DIRS` step apart) and both exist.
+2. **Wormholes:** they share a wormhole type (any string in `wormholes`: alpha, beta, gamma, delta, epsilon). Only on-map tiles count. Mallice and off-map homes aren't in the string, so ignore them.
+3. **Hyperlanes:** a hyperlane tile at hex H, placed at `rotation`, has edge pairs `rotateLanes(tiles[id].hyperlanes, rotation)`. For each pair `[a, b]`, the system one step from H in direction `a` is adjacent to the system one step from H in direction `b`. If an end leads off the map or onto another hyperlane, follow the lane through that hyperlane: enter it from edge `(e + 3) % 6`, take its pair that contains that edge, and continue. Stop after 6 hops to avoid loops. Being adjacent through a hyperlane costs 1 move, like any adjacency. The hyperlane hex itself is never a node.
+
+**Distance** from a seat is the number of moves, found by breadth-first search from the home system (distance 0) over that graph, with these anomaly rules:
+- `supernova` and `asteroid-field`: can't be entered or passed through. They still get a distance, for slicing only: 1 + the smallest distance among their reachable neighbours. They never expand the search.
+- `nebula`: can be entered but not passed through. It gets a distance and doesn't expand the search.
+- `gravity-rift`: passable at normal cost (keep it simple; the real rule gives +1 move on exit).
+- If `anomaly` is an array, apply the strictest rule (supernova/asteroid > nebula > rift).
+- Other seats' home systems and Mecatol Rex are passable.
+- Unreachable systems are left out of the seat's `distance` map.
+
+#### Slices
+
+Slice-able systems are every system except Mecatol (`type === "mecatol"`), seat homes (positions in `parsed.homes`), any other `type === "home"` tile, open slots (`id === "0"`), and hyperlanes. Each one goes to the seat(s) at the smallest distance. With k tied seats, each gets it at weight 1/k ("shared"). If no seat can reach it, it goes in `table.unassigned`.
+
+**Conservation (checked):** the sum over seats of `own.length + Σ shared[].weight`, plus `table.unassigned.length`, equals the number of slice-able systems.
+
+#### Metrics per seat (weighted: own at 1, shared at 1/k)
+
+- `optimal.resources`, `optimal.influence`, `optimal.total`: Milty's formula per planet. The higher of R/I counts fully and the other counts 0. If they're equal, each counts half (a 2/2 gives 1 R and 1 I).
+- `raw.resources`, `raw.influence`.
+- `planets`: a weighted planet count. Space stations (`spaceStation: true`) count toward R/I but not here.
+- `skips`: `{red, blue, green, yellow}`, weighted. A planet whose `tech` is an array counts each entry (Tiamat is 2 yellow).
+- `skipsNear`: an unweighted count of tech-skip planets in **any** system at distance ≤ 2 from this seat's home, whoever's slice it is.
+- `legendary`: names of legendary planets in own/shared systems.
+- `wormholes`: wormhole types in own/shared systems (deduplicated).
+- `anomalies`: weighted count of anomaly systems in own/shared, as `{ "supernova": 1, … }` (array anomalies count once per type).
+- `mecatol`: distance to Mecatol Rex, or `null` if unreachable.
+- `adjacentPlanets`: an unweighted count of planets in systems at distance exactly 1.
+- `contested`: `{ [otherSeat]: weighted count of systems shared with that seat }`.
+
+#### Report shape
+
+```js
+analyze(parsed, tiles) → {
+  seats: [{
+    seat: 1, pos: 19, homeId: "0", faction: null,   // faction from tiles[homeId].faction when it's a home tile
+    distance: { "0": 3, "1": 2, … },                // pos → moves, reachable systems only
+    own: [1, 7, 20, 36],                            // positions, ascending
+    shared: [{ pos: 8, weight: 0.5, with: [2] }],   // with = the other seats in the tie
+    metrics: { optimal: {resources, influence, total}, raw: {resources, influence}, planets,
+               skips: {red, blue, green, yellow}, skipsNear, legendary: [], wormholes: [],
+               anomalies: {}, mecatol, adjacentPlanets, contested: {} },
+  }],
+  table: { mean: { optimalTotal, optimalResources, optimalInfluence, planets }, bestMecatol, unassigned: [] },
+  findings: [{ seat: 4, severity: "warn", code: "optimal-low", data: { value: 5, mean: 9 } }],
+  verdict: { code: "lopsided", seats: [1, 4] },     // seats = the seats that have a warn
+  warnings: [],                                     // parsed.warnings plus analysis caveats
+}
+```
+
+#### Findings
+
+Thresholds are named constants at the top of `analyze.js`, each with a one-line "why". Codes and severities are fixed because the check script tests them:
+
+| Code | Severity | Fires when |
+|---|---|---|
+| `optimal-low` / `optimal-high` | warn | `optimal.total` is more than `OPTIMAL_BAND = 0.2` (20%) below or above the table mean |
+| `resources-low` / `influence-low` | note | that optimal stat is under `SPLIT_LOW = 0.7` × its table mean, and the seat has no `optimal-*` warn |
+| `no-skips-near` | warn | `skipsNear === 0` |
+| `mecatol-far` | note at 1 move more than `bestMecatol`; warn at ≥ `MECATOL_WARN = 2` more | also a warn when `mecatol` is `null` |
+| `many-anomalies` | note | weighted anomaly count > `MAX_ANOMALIES = 2` |
+| `wormhole` | note | the seat has a wormhole in own/shared, and at least half the other seats have none |
+| `legendary` | good | the seat has a legendary planet in own/shared |
+| `few-adjacent` | warn | `adjacentPlanets < MIN_ADJACENT = 2` |
+
+**Verdict:**
+- `fair`: no seat has a warn.
+- `one-weak`: exactly one seat has warns, and none of them is `optimal-high`.
+- `one-strong`: exactly one seat has warns, and they include `optimal-high`.
+- `lopsided`: two or more seats have warns.
+
+#### Wording
+
+`describe(report) → { verdict: string, seats: [{ seat, title, lines: [{ text, severity, rule? }] }] }`.
+- `title` is "Seat 1" or "Seat 1: The Federation of Sol".
+- Each finding becomes one plain-English sentence with real numbers, rounded to at most one decimal and with no trailing ".0". Example: "Strong on resources and influence: 17 optimal, against a table average of 9."
+- `rule` is a rules page id to link to when the finding is about an anomaly or wormhole (`R_supernova`, `R_asteroid_field`, `R_nebula`, `R_gravity_rift`, `R_wormholes`, `R_hyperlanes`). Check that each id exists in `public/data/rules.json` before using it.
+- Lines are ordered warn, note, good. Every seat gets at least one line; with no findings, say what's solid, e.g. "Close to the table average on everything."
+- The verdict text, for example: "Fair." / "Fair, with one weak seat (seat 4)." / "Fair, with one strong seat (seat 1)." / "Lopsided: seats 1 and 4 stand out."
+- Sentence case, no all-caps, no jargon beyond what TI4 players use (R/I, tech skip, slice, Mecatol).
+
+#### Fixtures and expected results (put these in `scripts/fixtures/maps.mjs`)
+
+**SYM**, a 6-player map that's identical under 60° rotation (36 tokens, Mecatol implied). Ring 1 is all tile 20. Ring 2 corners (odd positions 7–17) are 23, and ring 2 edges (even 8–18) are 22. In ring 3, corners (19, 22, …, 34) are `0` homes, the tile after each corner (20, 23, …, 35) is 19, and the tile before the next corner (21, 24, …, 36) is 21:
+```
+20 20 20 20 20 20 23 22 23 22 23 22 23 22 23 22 23 22 0 19 21 0 19 21 0 19 21 0 19 21 0 19 21 0 19 21
+```
+The parser warns about duplicate tiles. That's expected for every synthetic fixture.
+
+Expected for SYM:
+- homes `[19, 22, 25, 28, 31, 34]`
+- seat 1: own `[1, 7, 20, 36]`; shared 8 (with 2) and 18 (with 6), at 0.5 each
+- seat 1: optimal R 3, I 5, total 8; raw R 7, I 8; planets 5; skips yellow 1, blue 1, green 1, red 0; mecatol 3; adjacentPlanets 3
+- every seat has the same metrics as seat 1 (compare every number)
+- no `warn` findings, verdict `fair`
+
+**LOP**, which is SYM with position 20 → 35, 36 → 69, 27 → 46, 29 → 47. Seat 1 gets two rich systems and seat 4 (home 28) loses both of its own.
+- optimal totals: seat 1 17, seat 4 5, seats 2/3/5/6 8; table mean 9
+- seat 1: `optimal-high` warn
+- seat 4: `optimal-low` warn and `few-adjacent` warn (adjacentPlanets 1)
+- seats 2, 3, 5, 6: no warn
+- verdict `lopsided` with seats `[1, 4]`
+- `describe()`: a line containing "17" and "9" for seat 1, and the verdict text mentions seats 1 and 4
+
+**SUPERNOVA**: SYM with position 7 → 43 (supernova north of seat 1).
+- seat 1 mecatol 4; every other seat 3
+- seat 1 distance to position 7 is 1 (slicing distance), and position 7 doesn't expand
+- position 1 is shared three ways between seats 1, 2 and 6, at weight 1/3 each (all three are 3 moves away)
+- seat 1 has `mecatol-far` as a note, not a warn
+
+**NEBULA**: SYM with position 7 → 42. Seat 1 distance to position 7 is 1, and mecatol is 4.
+
+**ASTEROID**: SYM with position 7 → 44. Seat 1 mecatol is 4.
+
+**RIFT**: SYM with position 7 → 41. Seat 1 mecatol is 3 (passable).
+
+**WORMHOLE**: SYM with position 20 → 26 (Lodor, alpha) and position 29 → 39 (empty alpha).
+- seat 1 distance to position 29 is 2; seat 4 distance to position 20 is 2
+- position 20 stays seat 1's own, and position 29 stays seat 4's own
+
+**Real maps:** every map in the existing `MAPS` list. For each one, check:
+- `analyze()` doesn't throw, and there's one entry per home
+- conservation holds
+- no hyperlane position appears in any seat's `distance`, `own` or `shared`
+- every seat's `mecatol` is a number
+- `describe()` gives every seat at least one line
+- print each map's verdict and each seat's optimal total and lines, so the orchestrator can read them for sense
+
+#### Acceptance
+
+- `node scripts/check-analysis.mjs` passes every check above and prints "All checks passed".
+- `node scripts/check-map.mjs` still passes, with the same output as before.
+- No new dependencies, and nothing outside the files listed above changes.
+- Report back with: the output of both scripts, the thresholds you chose if any differ from the above (they shouldn't), and anything in the real-map reports that looks wrong to you.
+
+**Out of scope for 2b:** UI, rendering, URL state, faction-specific logic (Creuss/Crimson off-map homes beyond what the parser gives), Antimass Deflectors/Gravity Drive variants, Thunder's Edge hyperlanes 119–124.
 
 ### 2c: The page
 
