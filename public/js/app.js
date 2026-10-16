@@ -2,8 +2,10 @@
 
 import { addSection, start } from "./router.js";
 import { renderRules } from "./rules/view.js";
+import { renderMap } from "./map/view.js";
 
 addSection({ prefix: "/rules", label: "Rules", render: renderRules });
+addSection({ prefix: "/map", label: "Map", render: renderMap });
 
 start();
 
