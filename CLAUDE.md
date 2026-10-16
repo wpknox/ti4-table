@@ -71,6 +71,7 @@ The frontend-design brief is TI4's own vocabulary: dark space, hex tiles, resour
 - Vanilla JS ES modules, no dependencies, no bundler. Section banners (`// ── Name ───`), short "why" comments.
 - New sections register with `addSection({prefix, label, render})` in `app.js`. `render(url, main, ctx)` owns `<main>`. Check `ctx.stale()` after awaits.
 - Add new static files to `PRECACHE` in `sw.js` and bump `VERSION`.
+- **Sonar pass after each milestone's code lands.** The owner fixes SonarQube warnings where practical, in JS and CSS. Don't add a lint dependency to the repo: install `eslint` and `eslint-plugin-sonarjs` into the session scratchpad and run them with a throwaway flat config that uses `sonarjs.configs.recommended` over `public/js`, `scripts`, `functions` and `server`. That's the same approach as `../camp-finder/eslint.sonar.config.mjs`. Use `stylelint` the same way for CSS. Fix real findings, and note any rule you deliberately skip and why in the commit message.
 - Credit upstream rules authors (dangothemango, BradleyΣ) wherever rules content is shown.
 - Public repo: never commit personal names, `/Users/` paths, account IDs or secrets. `HANDOFF.md` is gitignored and holds machine-specific notes.
 

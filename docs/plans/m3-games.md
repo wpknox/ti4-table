@@ -50,8 +50,8 @@ Factions are stored as strings. Their names come from `rules.json` (the `F_*` pa
 ## Phases
 
 1. Research doc (auth + schema + local dev story: `wrangler pages dev` with a local D1).
-2. ~~Owner creates a Cloudflare account and runs `wrangler login`.~~ Done: wrangler is logged in on the owner's machine (Pages and D1 write scopes). Still to do: `wrangler d1 create ti4-table` and create the Pages project.
-3. API + schema migrations + seed data.
+2. ~~Owner creates a Cloudflare account and runs `wrangler login`.~~ Done: wrangler is logged in on the owner's machine (Pages and D1 write scopes). The D1 database `ti4-table` was created 2026-10-15. Still to do: create the Pages project at first deploy.
+3. API + schema migrations + seed data. Build plan: `docs/plans/m3-api.md`.
 4. UI: log form, list, detail, stats.
 5. Deploy, then add friends to the allowlist.
 
