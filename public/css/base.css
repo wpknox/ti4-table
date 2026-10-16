@@ -42,6 +42,7 @@
   --ruling-bg: rgba(244, 197, 66, 0.16);
   --ruling-ink: #ffeebd;
   --danger: #ff8f8f;
+  --warn: #ff9a52;
   --tech-biotic: #4cc77a;
   --tech-propulsion: #4f9cf0;
   --tech-cybernetic: #e8c547;
@@ -54,6 +55,15 @@
   --gutter: 16px;
   --radius-s: 4px;
   --radius-m: 10px;
+
+  /* type scale (ratio ~1.2 on a 17px reading size) */
+  --t-xs: 0.8125rem;
+  --t-s: 0.9375rem;
+  --t-m: 1.0625rem;
+  --t-l: 1.25rem;
+  --t-xl: 1.5rem;
+  --t-2xl: 2rem;
+  --t-num: 4.5rem;
 }
 
 @media (prefers-color-scheme: light) {
@@ -72,6 +82,7 @@
     --ruling-bg: rgba(214, 160, 0, 0.16);
     --ruling-ink: #4a3500;
     --danger: #b3261e;
+    --warn: #b4530f;
   }
 }
 
@@ -84,7 +95,7 @@ body {
   min-height: 100dvh;
   background: var(--void);
   color: var(--star);
-  font: 400 1rem/1.5 var(--text);
+  font: 400 var(--t-m)/1.5 var(--text);
   overflow-x: hidden;
 }
 
@@ -133,7 +144,7 @@ main:focus { outline: none; }
   gap: 8px;
   color: var(--star);
   text-decoration: none;
-  font: 700 1.05rem/1 var(--display);
+  font: 700 var(--t-m)/1 var(--display);
   font-stretch: 118%;
   letter-spacing: 0.01em;
 }
@@ -146,10 +157,10 @@ main:focus { outline: none; }
   border-radius: var(--radius-s);
   color: var(--dust);
   text-decoration: none;
-  font: 600 0.95rem/1 var(--display);
+  font: 600 var(--t-s)/1 var(--display);
   font-stretch: 105%;
 }
-.sections a[aria-current="page"] { color: var(--star); background: var(--hull); }
+.sections a[aria-current="page"] { color: var(--star); box-shadow: inset 0 -3px 0 var(--resource); }
 .sections a:hover { color: var(--star); }
 .sections:empty { display: none; }
 
@@ -164,7 +175,7 @@ main:focus { outline: none; }
   border-radius: var(--radius-s);
   background: var(--hull);
   border: 1px solid var(--seam);
-  font: 600 0.95rem/1 var(--display);
+  font: 600 var(--t-s)/1 var(--display);
 }
 .btn:hover:not(:disabled) { border-color: var(--influence); }
 
@@ -175,7 +186,7 @@ main:focus { outline: none; }
   min-height: 40px;
   border-radius: var(--radius-s);
   color: var(--dust);
-  font: 600 0.95rem/1 var(--display);
+  font: 600 var(--t-s)/1 var(--display);
 }
 .icon-btn:hover:not(:disabled) { color: var(--star); background: var(--hull); }
 
@@ -211,7 +222,7 @@ main:focus { outline: none; }
   min-height: 36px;
   padding: 0 12px;
   border-radius: var(--radius-s);
-  font: 700 0.9rem/1 var(--display);
+  font: 700 var(--t-s)/1 var(--display);
   color: var(--void);
 }
 #toast button:hover { background: rgba(127, 127, 127, 0.18); }

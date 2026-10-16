@@ -191,7 +191,7 @@ These came from the 2026-10-15 review. Each one is small. Do them in one pass be
    - note label "Section · note 3" → "Section, note 3"
    - "Card notes · …" → "Card notes for …"
    - suggestion "label · page" → "label" plus a muted "in The Ghosts of Creuss"
-2. **Eyebrow:** the small "Rules Reference" kind label above the big outlined number is an eyebrow. Remove it from `.rtools`. Faction and card pages already state their kind in the `h1 sub` line; LRR pages are identified by the number itself.
+2. **Eyebrow:** the small "Rules Reference" kind label above the big outlined number is an eyebrow. Remove it from `.rtools`. LRR pages are identified by the number itself. Faction and card pages are identified by their titles ("The Arborec", "Action Cards"), so they need no kind label. _Done 2026-10-15._
 3. **Search highlights are too loud.** Many solid yellow marks break a paragraph into fragments, and yellow is meant to signal resources. Make plain matches a 30% `--mark` tint with no padding. The current match keeps the solid fill and the `--current` ring. The tap-snippet-N-lands-on-highlight-N invariant is unaffected (this is CSS only).
 4. **Nav style:** replace the filled pill on `.sections a[aria-current]` with the underline treatment above (when the second section ships).
 5. **Type scale:** add the `--t-*` tokens to `base.css` and move `rules.css` onto them. The 9 distinct sizes become the 7 above. This shouldn't change anything visibly by more than 1px.

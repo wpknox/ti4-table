@@ -256,7 +256,7 @@ function placeLabel(page, pos) {
   const { section, anchor } = placeAt(page, pos);
   const num = anchor && /^\d/.test(anchor.id) ? anchor.id : "";
   const sec = section && !/^Rules Reference$/i.test(section) ? section : "";
-  return [num, sec].filter(Boolean).join(" · ");
+  return { num, sec };
 }
 
 function renderResults(view, rules, q, mode) {
@@ -287,8 +287,11 @@ function renderResults(view, rules, q, mode) {
   const snippet = (r, i) => {
     const m = r.matches[i];
     const label = placeLabel(r.page, m.ranges[0][0]);
+    const where = label.num || label.sec
+      ? `<span class="where">${label.num ? `<span class="wn">${esc(label.num)}</span>` : ""}${label.sec ? `<span class="ws">${esc(label.sec)}</span>` : ""}</span>`
+      : "";
     return `<a class="snippet" href="${esc(pageUrl(r.page.id, { q, mode: cq.mode, m: i }))}">
-        ${label ? `<span class="where">${esc(label)}</span>` : ""}
+        ${where}
         <span class="snip">${snippetHtml(r.page.text, m, cq)}</span>
       </a>`;
   };
@@ -308,7 +311,7 @@ function renderResults(view, rules, q, mode) {
                 ${r.page.number ? `<span class="n">${r.page.number}</span>` : ""}
                 <span class="t">${esc(r.page.title)}</span>
               </a>
-              <p class="meta">${esc(kindLabel(r.page))} · ${plural(r.matches.length, unit, units)}</p>
+              <p class="meta">${resultMeta(r.page, r.matches.length, unit, units)}</p>
               ${r.matches.slice(0, SNIPPETS_SHOWN).map((_, i) => snippet(r, i)).join("")}
               ${
                 r.matches.length > SNIPPETS_SHOWN
@@ -331,13 +334,20 @@ const termList = (terms, joiner) =>
     ? `“${esc(terms[0] ?? "")}”`
     : terms.slice(0, -1).map((t) => `“${esc(t)}”`).join(", ") + ` ${joiner} “${esc(terms.at(-1))}”`;
 
+// Prose, not "kind · count": Rules pages are identified by their number, so they get just the count.
+const resultMeta = (page, n, unit, units) => {
+  const count = plural(n, unit === "paragraph" ? "matching paragraph" : unit, unit === "paragraph" ? "matching paragraphs" : units);
+  if (page.kind === "Rules") return count;
+  return `${esc(kindLabel(page))}, ${count}`;
+};
+
 const kindLabel = (page) =>
   page.kind === "Rules"
     ? "Rules Reference"
     : page.kind === "Factions"
       ? "Faction notes"
       : page.subtitle
-        ? `Card notes · ${page.subtitle}`
+        ? `Card notes for ${page.subtitle}`
         : "Card notes";
 
 // ── Page ──────────────────────────────────────────────────────────────────
@@ -349,7 +359,6 @@ function renderPage(view, rules, page, { q, mode, m, anchor, restoreScroll }) {
   view.innerHTML = `
     <article class="rpage">
       <div class="rtools">
-        <span class="muted kind">${esc(kindLabel(page))}</span>
         <span class="spacer"></span>
         <button class="icon-btn" data-act="smaller" aria-label="Smaller text" title="Smaller text">A−</button>
         <button class="icon-btn" data-act="larger" aria-label="Larger text" title="Larger text">A+</button>
@@ -436,7 +445,7 @@ function setActiveMatch(i, scroll = true) {
   for (const el of marks[i]) el.classList.add("current");
   if (state.query?.mode !== "phrase") marks[i][0]?.closest("li, p")?.classList.add("hit-block");
 
-  $(".matchcount").innerHTML = `<b>${i + 1}</b> of ${marks.length} · “${esc(state.query?.q ?? "")}”`;
+  $(".matchcount").innerHTML = `<b>${i + 1}</b> of ${marks.length} for “${esc(state.query?.q ?? "")}”`;
   const url = new URL(location.href);
   url.searchParams.set("m", String(i));
   url.hash = "";
@@ -463,7 +472,7 @@ function paragraphLabel(li, id) {
   while (el && el.nodeName !== "H2") el = el.previousElementSibling;
   const section = el ? textOf(el).text.trim() : "Notes";
   const num = li.querySelector(":scope > .pn")?.textContent ?? "";
-  return `${section} · note ${num}`;
+  return `${section}, note ${num}`;
 }
 
 function shareParagraph(a) {
@@ -513,7 +522,7 @@ function renderSuggest() {
       .map(
         (s, i) => `<a class="suggestion${i === suggestIndex ? " active" : ""}" role="option" id="sg${i}"
           aria-selected="${i === suggestIndex}" href="${esc(suggestionUrl(s))}">
-          <span class="t">${s.label ? `${esc(s.label)} <span class="muted">· ${esc(s.page.title)}</span>` : esc(s.page.title)}</span>
+          <span class="t">${s.label ? `${esc(s.label)} <span class="muted">in ${esc(s.page.title)}</span>` : esc(s.page.title)}</span>
           <span class="muted k">${esc(kindLabel(s.page))}</span></a>`,
       )
       .join("") + `<p class="suggest-hint">Enter searches the full text</p>`;
