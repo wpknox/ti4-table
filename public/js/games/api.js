@@ -42,7 +42,10 @@ export async function api(method, path, body) {
     const msg = typeof data?.error === "string" && data.error ? data.error : FALLBACK[res.status] ?? `Something went wrong (${res.status}).`;
     throw new ApiError(res.status, msg);
   }
-  return data ?? {};
+  // A 200 that isn't JSON means something other than the API answered
+  // (a static host's SPA fallback, a captive portal).
+  if (data === null) throw new ApiError(res.status, "The games server isn't reachable right now.");
+  return data;
 }
 
 export const get = (path) => api("GET", path);

@@ -41,6 +41,12 @@ async function fileFor(urlPath) {
 
 createServer(async (req, res) => {
   const { pathname } = new URL(req.url, "http://localhost");
+  // No Functions here. Say so in JSON instead of handing the API the app shell.
+  if (pathname.startsWith("/api/")) {
+    res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "The games API isn't running on this dev server. Use npm run dev." }));
+    return;
+  }
   // Missing assets should 404, not silently get the app shell.
   const looksLikeAsset = /\.\w+$/.test(pathname);
   const path =
