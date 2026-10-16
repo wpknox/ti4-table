@@ -1,0 +1,221 @@
+/* Site-wide tokens, type, and the app shell.
+ *
+ * Colour comes from the game's own vocabulary: resource yellow, influence
+ * blue, and the four technology colours. Everything else stays quiet so
+ * those read as meaning, not decoration. */
+
+@font-face {
+  font-family: "Saira";
+  src: url("/fonts/saira.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 50% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("/fonts/atkinson.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("/fonts/atkinson-italic.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --void: #0a0f24;
+  --hull: #121a3a;
+  --hull-2: #1b2550;
+  --seam: #2a3566;
+  --star: #e9edff;
+  --dust: #a0a9cf;
+  --influence: #74bcff;
+  --resource: #f4c542;
+  --mark: #ffd54a;
+  --mark-ink: #1a1400;
+  --current: #ff8a3d;
+  --ruling-bg: rgba(244, 197, 66, 0.16);
+  --ruling-ink: #ffeebd;
+  --danger: #ff8f8f;
+  --tech-biotic: #4cc77a;
+  --tech-propulsion: #4f9cf0;
+  --tech-cybernetic: #e8c547;
+  --tech-warfare: #ef5a5f;
+
+  --display: "Saira", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+  --text: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --fs: 1.0625rem; /* reading size; A−/A+ change it */
+  --measure: 42rem;
+  --gutter: 16px;
+  --radius-s: 4px;
+  --radius-m: 10px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --void: #eef1f8;
+    --hull: #ffffff;
+    --hull-2: #e2e7f5;
+    --seam: #c5cde4;
+    --star: #121833;
+    --dust: #505b7d;
+    --influence: #1d5fc4;
+    --resource: #9a6700;
+    --mark: #ffd54a;
+    --current: #ff9a52;
+    --ruling-bg: rgba(214, 160, 0, 0.16);
+    --ruling-ink: #4a3500;
+    --danger: #b3261e;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--void);
+  color: var(--star);
+  font: 400 1rem/1.5 var(--text);
+  overflow-x: hidden;
+}
+
+a { color: var(--influence); text-underline-offset: 0.15em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+button:disabled { opacity: 0.4; cursor: default; }
+
+:focus-visible {
+  outline: 2px solid var(--influence);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
+}
+main:focus { outline: none; }
+
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  z-index: 10;
+  padding: 8px 12px;
+  background: var(--hull);
+}
+.skip:focus { top: 8px; }
+
+[hidden] { display: none !important; }
+.muted { color: var(--dust); }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: calc(var(--measure) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 12px) var(--gutter) 4px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--star);
+  text-decoration: none;
+  font: 700 1.05rem/1 var(--display);
+  font-stretch: 118%;
+  letter-spacing: 0.01em;
+}
+.brand-hex { width: 22px; height: 22px; }
+.brand-hex polygon { fill: none; stroke: var(--resource); stroke-width: 3; stroke-linejoin: round; }
+
+.sections { display: flex; gap: 4px; }
+.sections a {
+  padding: 6px 10px;
+  border-radius: var(--radius-s);
+  color: var(--dust);
+  text-decoration: none;
+  font: 600 0.95rem/1 var(--display);
+  font-stretch: 105%;
+}
+.sections a[aria-current="page"] { color: var(--star); background: var(--hull); }
+.sections a:hover { color: var(--star); }
+.sections:empty { display: none; }
+
+/* ── Shared controls ──────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-s);
+  background: var(--hull);
+  border: 1px solid var(--seam);
+  font: 600 0.95rem/1 var(--display);
+}
+.btn:hover:not(:disabled) { border-color: var(--influence); }
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: var(--radius-s);
+  color: var(--dust);
+  font: 600 0.95rem/1 var(--display);
+}
+.icon-btn:hover:not(:disabled) { color: var(--star); background: var(--hull); }
+
+.error { color: var(--danger); }
+
+/* ── Toast ────────────────────────────────────────────────────────────── */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--gutter));
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-m);
+  background: var(--star);
+  color: var(--void);
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, 150%);
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+#toast.show { transform: translate(-50%, 0); opacity: 1; }
+#toast span { flex: 1 1 auto; min-width: 0; padding-right: 8px; }
+#toast button {
+  flex: none;
+  white-space: nowrap;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-s);
+  font: 700 0.9rem/1 var(--display);
+  color: var(--void);
+}
+#toast button:hover { background: rgba(127, 127, 127, 0.18); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

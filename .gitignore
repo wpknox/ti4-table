@@ -1,0 +1,6 @@
+.DS_Store
+.playwright-mcp/
+HANDOFF.md
+node_modules/
+.wrangler/
+.dev.vars

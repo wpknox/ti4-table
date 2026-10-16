@@ -1,0 +1,315 @@
+/* The Rules section. Paragraph numbers are the typographic signature: set in
+ * expanded Saira in a hanging gutter, the way the printed reference reads,
+ * and each is a link you can share. */
+
+.rules { max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) calc(env(safe-area-inset-bottom) + 96px); }
+
+/* ── Search bar (sticky) ──────────────────────────────────────────────── */
+
+.rbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0 calc(-1 * var(--gutter));
+  padding: calc(env(safe-area-inset-top) * 0 + 10px) var(--gutter) 10px;
+  background: var(--void);
+  box-shadow: 0 1px 0 var(--seam);
+}
+.rsearch { display: flex; gap: 8px; align-items: center; }
+.rsearch input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--seam);
+  background: var(--hull);
+  font-size: 1.0625rem; /* ≥16px stops iOS zooming on focus */
+}
+.rsearch input::placeholder { color: var(--dust); opacity: 1; }
+.rsearch input:focus { outline: none; border-color: var(--influence); box-shadow: 0 0 0 3px color-mix(in srgb, var(--influence) 30%, transparent); }
+.rgo { height: 46px; border-radius: var(--radius-m); }
+.rback { margin-left: -8px; }
+@media (max-width: 420px) { .rgo { display: none; } }
+
+.suggest {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: calc(100% - 4px);
+  padding: 6px;
+  border-radius: var(--radius-m);
+  background: var(--hull);
+  border: 1px solid var(--seam);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+.suggestion {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  color: var(--star);
+  text-decoration: none;
+}
+.suggestion .k { font-size: 0.8rem; white-space: nowrap; }
+.suggestion:hover, .suggestion.active { background: var(--hull-2); }
+.suggest-hint { margin: 4px 12px 2px; font-size: 0.8rem; color: var(--dust); }
+
+/* ── Home ─────────────────────────────────────────────────────────────── */
+
+.lede { margin: 20px 0 8px; color: var(--dust); font-size: 1rem; }
+.inline-try {
+  color: var(--star);
+  text-decoration: underline dotted var(--dust);
+  text-underline-offset: 0.2em;
+}
+.inline-try:hover { text-decoration-color: var(--influence); }
+
+.home h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 24px 0 10px;
+  font: 600 1rem/1.2 var(--display);
+  font-stretch: 110%;
+}
+.link { color: var(--influence); text-decoration: underline; font-size: 0.875rem; font-family: var(--text); font-weight: 400; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--hull);
+  border: 1px solid var(--seam);
+  color: var(--star);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+.chip:hover { border-color: var(--influence); }
+
+.browse { margin-top: 28px; }
+.tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--seam);
+}
+.tabs button {
+  flex: none;
+  padding: 10px 12px 12px;
+  margin-bottom: -1px;
+  border-bottom: 3px solid transparent;
+  color: var(--dust);
+  font: 600 1rem/1 var(--display);
+  font-stretch: 108%;
+}
+.tabs button[aria-selected="true"] { color: var(--star); border-bottom-color: var(--resource); }
+.tabs .count { font-weight: 400; color: var(--dust); margin-left: 2px; }
+
+.index { list-style: none; margin: 8px 0 0; padding: 0; }
+.index a {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--seam) 55%, transparent);
+  color: var(--star);
+  text-decoration: none;
+}
+.index a:hover .t { color: var(--influence); }
+.index .n {
+  flex: none;
+  width: 2.4em;
+  text-align: right;
+  font: 600 0.9375rem/1 var(--display);
+  font-stretch: 120%;
+  font-variant-numeric: tabular-nums;
+  color: var(--resource);
+}
+.index .sub { margin-left: auto; padding-left: 12px; color: var(--dust); font-size: 0.85rem; text-align: right; }
+@media (min-width: 720px) {
+  .index[data-kind="Rules"], .index[data-kind="Factions"] { columns: 2; column-gap: 32px; }
+  .index li { break-inside: avoid; }
+}
+
+/* ── Results ──────────────────────────────────────────────────────────── */
+
+.results-head { margin: 20px 0 8px; }
+.results-head h1 { margin: 0 0 6px; font: 600 1.25rem/1.2 var(--display); font-stretch: 110%; }
+.results-head p { margin: 4px 0; }
+
+.result-list { list-style: none; margin: 0; padding: 0; }
+.result { padding: 18px 0 14px; border-bottom: 1px solid var(--seam); }
+.result-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--star);
+  text-decoration: none;
+  font: 700 1.25rem/1.2 var(--display);
+  font-stretch: 112%;
+}
+.result-title .n { color: var(--resource); font-weight: 600; font-variant-numeric: tabular-nums; }
+.result-title:hover .t { color: var(--influence); }
+.result .meta { margin: 2px 0 8px; font-size: 0.85rem; color: var(--dust); }
+
+.snippet {
+  display: block;
+  margin: 2px -10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  color: var(--star);
+  text-decoration: none;
+  line-height: 1.45;
+}
+.snippet:hover { background: var(--hull); }
+.snippet .where {
+  display: block;
+  margin-bottom: 2px;
+  font: 600 0.8125rem/1.2 var(--display);
+  font-stretch: 112%;
+  color: var(--resource);
+}
+.snip { font-size: 0.95rem; color: color-mix(in srgb, var(--star) 86%, var(--dust)); }
+.more { margin-top: 6px; }
+
+.empty h1 { margin: 28px 0 8px; font: 600 1.375rem/1.25 var(--display); font-stretch: 110%; }
+.empty p { color: var(--dust); }
+
+mark {
+  background: var(--mark);
+  color: var(--mark-ink);
+  border-radius: 2px;
+  padding: 0 0.06em;
+}
+mark.current { background: var(--current); box-shadow: 0 0 0 3px var(--current); }
+
+/* ── Rule page ────────────────────────────────────────────────────────── */
+
+.rtools { display: flex; align-items: center; gap: 2px; margin: 14px 0 0; }
+.rtools .kind { font-size: 0.875rem; }
+.rtools .spacer { flex: 1; }
+
+.rbody { font-size: var(--fs); line-height: 1.55; }
+
+.rbody > header { position: relative; margin: 6px 0 18px; }
+/* The rule's number, large and outlined, behind its title. Generated by CSS
+   so it never enters the page text the highlighter counts. */
+.rbody > header[data-num]::before {
+  content: attr(data-num);
+  display: block;
+  font: 800 4.5rem/0.9 var(--display);
+  font-stretch: 125%;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--resource);
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+.rbody h1 {
+  margin: 0;
+  font: 700 2rem/1.1 var(--display);
+  font-stretch: 116%;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+.rbody h1 sub { display: block; margin-top: 6px; font: 400 0.95rem/1.3 var(--text); color: var(--dust); }
+
+.rbody article > h2 {
+  margin: 1.8em 0 0.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--seam);
+  font: 700 1.2em/1.2 var(--display);
+  font-stretch: 112%;
+}
+.rbody article > h2 sub { font: 400 0.7em var(--text); color: var(--dust); vertical-align: baseline; }
+.rbody h2 { font-size: 1.1em; }
+.rbody p { margin: 0; padding: 0.35em 0; }
+.rbody sc { font-variant: small-caps; letter-spacing: 0.02em; }
+.rbody sub { font-size: 70%; vertical-align: baseline; }
+.rbody sup { line-height: 0; }
+.rbody code { font-size: 0.9em; }
+.rbody ul { padding-left: 1.4em; }
+.rbody ul li { padding: 0.15em 0; }
+
+/* Numbered paragraphs: a hanging gutter of links. */
+.rbody ol { list-style: none; margin: 0; padding: 0; }
+.rbody .lrr, .rbody .note { padding-left: 3.6em; }
+.rbody .lrr > ol, .rbody .note > ol { padding-left: 2.2em; }
+.rbody ol li { position: relative; padding: 0.3em 0 0.45em; scroll-margin-top: 90px; }
+.rbody .lrr > h2 { margin: 1em 0 0.2em; font: 700 1.05em/1.3 var(--display); font-stretch: 110%; }
+.rbody .lrr > h2 > li { padding: 0; }
+
+.pn {
+  position: absolute;
+  left: -3.6em;
+  top: 0.32em;
+  width: 3.2em;
+  text-align: right;
+  padding-right: 0.5em;
+  font: 600 0.82em/1.6 var(--display);
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+  color: var(--dust);
+  text-decoration: none;
+  border-radius: var(--radius-s);
+}
+.rbody ol ol .pn { left: -2.4em; width: 2.1em; }
+.rbody .lrr > h2 .pn { top: 0.15em; font-size: 0.78em; }
+.pn:hover { color: var(--influence); }
+.rbody li.target > .pn { color: var(--influence); }
+.rbody li.target, .rbody .hit-block {
+  background: color-mix(in srgb, var(--influence) 12%, transparent);
+  box-shadow: -0.6em 0 0 color-mix(in srgb, var(--influence) 12%, transparent), 0.6em 0 0 color-mix(in srgb, var(--influence) 12%, transparent);
+  border-radius: 2px;
+}
+
+.ruling {
+  color: var(--ruling-ink);
+  background: var(--ruling-bg);
+  box-shadow: inset 3px 0 0 var(--resource);
+  padding: 0.1em 0.35em 0.1em 0.55em;
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.credits {
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid var(--seam);
+  font-size: 0.8125rem;
+  color: var(--dust);
+}
+.credits p { margin: 0 0 8px; }
+
+/* ── Match bar ────────────────────────────────────────────────────────── */
+
+.matchbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: min(calc(100vw - 2 * var(--gutter)), 30rem);
+  padding: 4px 4px 4px 16px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-m);
+  background: var(--hull-2);
+  border: 1px solid var(--seam);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+.matchbar[hidden] { display: none; }
+.matchcount { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9375rem; }
+.matchcount b { font-family: var(--display); font-stretch: 112%; }
+.matchbar .icon-btn { min-width: 44px; min-height: 44px; color: var(--star); }
+
+.loading { margin-top: 24px; }
+.notfound, .page-error { max-width: var(--measure); margin: 40px auto; padding: 0 var(--gutter); }
