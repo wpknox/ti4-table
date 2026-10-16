@@ -117,6 +117,12 @@
   .seats { margin-top: 12px; }
 }
 
+/* Player name under the numeral on a planned or played game's map. The halo keeps it readable over tile art. */
+.mapsvg .seat-name {
+  font: 600 4.4px var(--display); font-stretch: 105%; fill: var(--star); text-anchor: middle;
+  stroke: var(--void); stroke-width: 1.4px; stroke-linejoin: round; paint-order: stroke;
+}
+
 /* Faction symbol above the seat numeral on a home hex. */
 .mapsvg .fsym-map { color: var(--dust); fill: currentColor; pointer-events: none; overflow: visible; }
 
@@ -139,3 +145,7 @@
 .mapsvg.art .num-scrim { fill: #05070f; opacity: 0.72; pointer-events: none; }
 .mapsvg.art .hex.pic .face { fill: var(--hull-2); }
 @media (prefers-reduced-motion: reduce) { .mapsvg.art .dim { transition: none; } }
+
+/* Link from a map's seat reports to the plan form. */
+.plan-link { margin: 20px 0; }
+.plan-link a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }

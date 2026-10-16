@@ -9,6 +9,7 @@ import { navigate } from "../router.js";
 import { hydrateSymbols } from "../factions.js";
 import { get, post, del, currentPlayer, ApiError } from "./api.js";
 import { factionName } from "./names.js";
+import { loadMapModel, drawMapWithLabels } from "../map/load.js";
 import * as S from "./stats.js";
 import { dayShort, yearOf, dayLong, expansionsText, safeHttps, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
@@ -71,15 +72,31 @@ export function guard(env, fn) {
 
 const scoreLine = (g) => g.seats.map((s) => s.points).sort((a, b) => b - a).join("–");
 
+// The TI Assistant link sits beside the row link, not inside it (a link can't hold a link).
+function tiLink(g) {
+  if (!safeHttps(g.ti_assistant_url)) return "";
+  return `<a class="ti-link" href="${esc(g.ti_assistant_url)}" target="_blank" rel="noopener noreferrer">TI Assistant</a>`;
+}
+
 function rowHtml(g) {
   const w = g.seats.find((s) => s.is_winner);
   const yr = yearOf(g.played_on) !== new Date().getFullYear() ? `<span class="yr">${yearOf(g.played_on)}</span>` : "";
-  return `<li><a class="grow" href="/games/${g.id}">
+  return `<li class="drow"><a class="grow" href="/games/${g.id}">
     <span class="gdate">${esc(dayShort(g.played_on))}${yr}</span>
     <span class="gmain">
       <span class="gwho">${w ? `${sym(w.faction, "win")}${esc(w.player_name)} won as ${esc(factionName(w.faction))}, ${esc(scoreLine(g))}` : "No winner recorded"}</span>
       <span class="gmeta">${esc(plural(g.seats.length, "player"))}, ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}</span>
-    </span></a></li>`;
+    </span></a>${tiLink(g)}</li>`;
+}
+
+function plannedRowHtml(g) {
+  const yr = yearOf(g.played_on) !== new Date().getFullYear() ? `<span class="yr">${yearOf(g.played_on)}</span>` : "";
+  const map = g.map_string ? `<span class="gmeta">Map chosen, ${esc(plural(g.seats.length, "seat"))}</span>` : "";
+  return `<li class="drow"><a class="grow" href="/games/${g.id}">
+    <span class="gdate">${esc(dayShort(g.played_on))}${yr}</span>
+    <span class="gmain">
+      <span class="gwho">${esc(plural(g.seats.length, "player"))} · planned</span>${map}
+    </span></a>${tiLink(g)}</li>`;
 }
 
 function renderList(env) {
@@ -91,14 +108,23 @@ function renderList(env) {
     <div class="g-head"><h1>Games</h1>
       ${canLog ? `<a class="btn btn-primary" href="/games/new">Log a game</a>` : `<a class="btn btn-primary" href="/games/join">Sign in</a>`}
     </div>
+    <div id="upcoming" hidden><h2>Upcoming</h2><ul class="glist" id="uplist"></ul><h2>Played</h2></div>
     <ul class="glist" id="glist"></ul>
     <p class="g-more"></p>`;
   const list = $("#glist", page);
   const more = $(".g-more", page);
 
+  const loadPlanned = () =>
+    guard(env, async () => {
+      const { games } = await get("/api/games?status=planned");
+      if (ctx.stale() || !games.length) return;
+      $("#uplist", page).innerHTML = games.map(plannedRowHtml).join("");
+      $("#upcoming", page).hidden = false;
+    });
+
   const load = (before) =>
     guard(env, async () => {
-      const q = new URLSearchParams({ limit: "30" });
+      const q = new URLSearchParams({ limit: "30", status: "finished" });
       if (before) q.set("before", before);
       const data = await get(`/api/games?${q}`);
       if (ctx.stale()) return;
@@ -115,30 +141,71 @@ function renderList(env) {
       }
       if (!before) scrollTo(0, ctx.restoring ? (ctx.scroll ?? 0) : 0);
     });
-  return load(null);
+  return Promise.all([loadPlanned(), load(null)]);
 }
 
 // ── One game ───────────────────────────────────────────────────────────────
+
+function finishedSeatHtml(s) {
+  return `<li class="gseat${s.is_winner ? " is-winner" : ""}">
+    <span class="gscore" aria-label="${esc(s.points)} points">${esc(s.points)}</span>
+    <span class="gseat-body">
+      <span class="gfaction">${sym(s.faction)}${esc(factionName(s.faction))}</span>
+      <span class="gplayer">${esc(seatDetail(s))}</span>
+    </span></li>`;
+}
+
+// A planned seat shows its seat number where a played one shows points.
+function plannedSeatHtml(s, i) {
+  const n = (s.seat_index ?? i) + 1;
+  return `<li class="gseat planned">
+    <span class="gscore" aria-label="Seat ${n}">${n}</span>
+    <span class="gseat-body">
+      <span class="gfaction${s.faction ? "" : " unpicked"}">${sym(s.faction)}${esc(factionName(s.faction))}</span>
+      <span class="gplayer">${esc(seatDetail(s, false))}</span>
+    </span></li>`;
+}
+
+function seatsHtml(g) {
+  if (g.status === "planned") return g.seats.map(plannedSeatHtml).join("");
+  // Finishing order: winner first, then by points (the API returns seat order).
+  return [...g.seats].sort((a, b) => b.is_winner - a.is_winner || b.points - a.points).map(finishedSeatHtml).join("");
+}
+
+function gameHeadHtml(g) {
+  const count = esc(plural(g.seats.length, "player"));
+  if (g.status === "planned") {
+    return `<h1 class="gtitle">Planned for ${esc(dayLong(g.played_on))}</h1>
+      <p class="gsub">${count}, played to ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}. This game hasn't been played yet. Stats will count it once results are in.</p>`;
+  }
+  const winner = g.seats.find((s) => s.is_winner);
+  return `<h1 class="gtitle">${esc(dayLong(g.played_on))}</h1>
+    <p class="gsub">${winner ? `${esc(winner.player_name)} won as ${esc(factionName(winner.faction))}. ` : ""}${count}, played to ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}.</p>`;
+}
+
+// Draws the game's map under the seats, once the page is up. If the map string
+// doesn't parse, or the tile data won't load, the page just goes without it.
+async function drawGameMap(g, box, ctx) {
+  try {
+    const model = await loadMapModel(g.map_string);
+    if (!model || ctx.stale()) return;
+    const labels = {};
+    for (const s of g.seats) if (s.seat_index != null) labels[s.seat_index + 1] = { name: s.player_name, faction: s.faction };
+    const svg = await drawMapWithLabels(model, labels, `Map for ${plural(model.report.seats.length, "player")}`);
+    if (ctx.stale()) return;
+    box.innerHTML = svg;
+    box.hidden = false;
+  } catch {
+    // No map is better than a broken page.
+  }
+}
 
 function renderGame(env, id) {
   const { main, ctx, me } = env;
   return guard(env, async () => {
     const { game: g } = await get(`/api/games/${id}`);
     if (ctx.stale()) return;
-    document.title = `Game of ${dayLong(g.played_on)} · TI4 Table`;
-    const winner = g.seats.find((s) => s.is_winner);
-    // Finishing order: winner first, then by points (the API returns seat order).
-    const seats = [...g.seats]
-      .sort((a, b) => b.is_winner - a.is_winner || b.points - a.points)
-      .map(
-        (s) => `<li class="gseat${s.is_winner ? " is-winner" : ""}">
-          <span class="gscore" aria-label="${esc(s.points)} points">${esc(s.points)}</span>
-          <span class="gseat-body">
-            <span class="gfaction">${sym(s.faction)}${esc(factionName(s.faction))}</span>
-            <span class="gplayer">${esc(seatDetail(s))}</span>
-          </span></li>`,
-      )
-      .join("");
+    document.title = `${g.status === "planned" ? "Planned game" : "Game"} of ${dayLong(g.played_on)} · TI4 Table`;
     const edited = g.updated_by?.id !== g.created_by?.id || g.updated_at !== g.created_at;
     const links = [];
     if (safeHttps(g.ti_assistant_url))
@@ -148,23 +215,26 @@ function renderGame(env, id) {
     main.innerHTML = `<div class="games-page g-game">
       ${tabs("", me)}
       ${g.deleted_at ? `<p class="g-deleted" role="status">This game is deleted. Only admins can see it.</p>` : ""}
-      <h1 class="gtitle">${esc(dayLong(g.played_on))}</h1>
-      <p class="gsub">${winner ? `${esc(winner.player_name)} won as ${esc(factionName(winner.faction))}. ` : ""}${esc(plural(g.seats.length, "player"))}, played to ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}.</p>
-      <ol class="gseats">${seats}</ol>
+      ${gameHeadHtml(g)}
+      <ol class="gseats">${seatsHtml(g)}</ol>
+      ${g.map_string ? `<div class="game-map" hidden></div>` : ""}
       ${g.notes ? `<h2>Notes</h2><p class="gnotes">${esc(g.notes)}</p>` : ""}
       ${links.length ? `<p class="glinks">${links.join(" ")}</p>` : ""}
-      <p class="gfoot muted">Logged by ${esc(g.created_by?.name ?? "someone")}${edited && g.updated_by?.name ? `, last edited by ${esc(g.updated_by.name)}` : ""}.</p>
+      <p class="gfoot muted">${g.status === "planned" ? "Planned" : "Logged"} by ${esc(g.created_by?.name ?? "someone")}${edited && g.updated_by?.name ? `, last edited by ${esc(g.updated_by.name)}` : ""}.</p>
       <div class="gactions"></div>
     </div>`;
     addGameActions($(".gactions", main), g, me);
     void hydrateSymbols(main);
     scrollTo(0, ctx.restoring ? (ctx.scroll ?? 0) : 0);
+    if (g.map_string) void drawGameMap(g, $(".game-map", main), ctx);
   });
 }
 
 // Edit / History / Restore / Delete, depending on the viewer and the game.
 function addGameActions(acts, g, me) {
-  if (g.can_edit) acts.insertAdjacentHTML("beforeend", `<a class="btn btn-primary" href="/games/${g.id}/edit">Edit game</a>`);
+  const planned = g.status === "planned";
+  if (g.can_edit && planned) acts.insertAdjacentHTML("beforeend", `<a class="btn btn-primary" href="/games/${g.id}/edit?finish=1">Enter results</a>`);
+  if (g.can_edit) acts.insertAdjacentHTML("beforeend", `<a class="btn${planned ? "" : " btn-primary"}" href="/games/${g.id}/edit">${planned ? "Edit plan" : "Edit game"}</a>`);
   const admin = me?.role === "admin";
   if (admin) acts.insertAdjacentHTML("beforeend", `<a class="btn" href="/games/${g.id}/history">History</a>`);
   if (admin && g.deleted_at) {
@@ -187,12 +257,12 @@ function addGameActions(acts, g, me) {
 }
 
 // "Name, colour, winner, started as speaker, seat 3": whichever parts apply.
-function seatDetail(s) {
+function seatDetail(s, withSeat = true) {
   const parts = [s.player_name];
   if (s.color) parts.push(s.color);
   if (s.is_winner) parts.push("winner");
   if (s.is_speaker_start) parts.push("started as speaker");
-  if (s.seat_index != null) parts.push(`seat ${s.seat_index + 1}`);
+  if (withSeat && s.seat_index != null) parts.push(`seat ${s.seat_index + 1}`);
   return parts.join(", ");
 }
 

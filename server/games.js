@@ -34,6 +34,8 @@ async function validate(body, db, { creating }) {
     }
     g.client_id = body.client_id;
   }
+  g.status = body.status ?? "finished";
+  if (g.status !== "planned" && g.status !== "finished") throw bad("status must be planned or finished.");
   validateGameFields(body, g);
   const players = validateSeats(body.seats, g);
 
@@ -50,7 +52,8 @@ async function validate(body, db, { creating }) {
 function validateGameFields(body, g) {
   if (!validDate(body.played_on)) throw bad("Played on needs a date like 2026-10-11.");
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  if (body.played_on > tomorrow) throw bad("That date is in the future.");
+  // A planned game is for a date that hasn't happened yet.
+  if (g.status === "finished" && body.played_on > tomorrow) throw bad("That date is in the future.");
   g.played_on = body.played_on;
 
   g.points_to_win = body.points_to_win ?? 10;
@@ -83,7 +86,8 @@ function validateExtras(body, g) {
 // Sets g.seats and returns the set of player ids.
 function validateSeats(seats, g) {
   if (!Array.isArray(seats) || seats.length < 3 || seats.length > 8) throw bad("A game needs 3 to 8 seats.");
-  const seen = { players: new Set(), factions: new Set(), indexes: new Set() };
+  const planned = g.status === "planned";
+  const seen = { players: new Set(), factions: new Set(), indexes: new Set(), planned };
   let winners = 0, speakers = 0;
   g.seats = seats.map((s) => {
     const seat = validateSeat(s, seen);
@@ -91,7 +95,7 @@ function validateSeats(seats, g) {
     if (seat.is_speaker_start) speakers++;
     return seat;
   });
-  if (winners !== 1) throw bad("Exactly one seat must be the winner.");
+  if (!planned && winners !== 1) throw bad("Exactly one seat must be the winner.");
   if (speakers > 1) throw bad("Only one seat can be the starting speaker.");
   return seen.players;
 }
@@ -102,23 +106,39 @@ function checkSeatIndex(seat_index, indexes) {
   indexes.add(seat_index);
 }
 
-function validateSeat(s, { players, factions, indexes }) {
+// A planned seat may have no faction yet. A finished one needs it.
+function checkFaction(faction, factions, planned) {
+  if (faction === null || faction === undefined) {
+    if (planned) return null;
+    throw bad("Every seat needs a faction before the game can be finished.");
+  }
+  if (typeof faction !== "string" || !FACTIONS.has(faction)) throw bad("Unknown faction.");
+  if (factions.has(faction)) throw bad("A faction can only be used once.");
+  factions.add(faction);
+  return faction;
+}
+
+function checkPoints(s, planned) {
+  if (planned) return 0; // points and winner don't exist until the game is played
+  if (!isInt(s.points) || s.points < 0 || s.points > 30) throw bad("Points must be a whole number from 0 to 30.");
+  return s.points;
+}
+
+function validateSeat(s, { players, factions, indexes, planned }) {
   if (!s || typeof s !== "object") throw bad("Each seat must be an object.");
   if (!isInt(s.player_id)) throw bad("Each seat needs a player.");
   if (players.has(s.player_id)) throw bad("A player can only have one seat.");
   players.add(s.player_id);
-  if (typeof s.faction !== "string" || !FACTIONS.has(s.faction)) throw bad("Unknown faction.");
-  if (factions.has(s.faction)) throw bad("A faction can only be used once.");
-  factions.add(s.faction);
+  const faction = checkFaction(s.faction, factions, planned);
   const color = s.color ?? null;
   if (color !== null && (typeof color !== "string" || color.length > 20)) throw bad("Colour is too long.");
   const seat_index = s.seat_index ?? null;
   if (seat_index !== null) checkSeatIndex(seat_index, indexes);
-  if (!isInt(s.points) || s.points < 0 || s.points > 30) throw bad("Points must be a whole number from 0 to 30.");
+  const points = checkPoints(s, planned);
   const win = s.is_winner ?? false, spk = s.is_speaker_start ?? false;
   if (typeof win !== "boolean" || typeof spk !== "boolean") throw bad("is_winner and is_speaker_start must be true or false.");
-  return { player_id: s.player_id, faction: s.faction, color, seat_index, points: s.points,
-    is_winner: win ? 1 : 0, is_speaker_start: spk ? 1 : 0 };
+  return { player_id: s.player_id, faction, color, seat_index, points,
+    is_winner: win && !planned ? 1 : 0, is_speaker_start: spk ? 1 : 0 };
 }
 
 // ── Statements ───
@@ -138,7 +158,7 @@ export const revisionInsert = (db, gameId, editorId) =>
     `INSERT INTO game_revisions (game_id, data, edited_by)
      SELECT g.id,
             json_object(
-              'game', json_object('played_on', g.played_on, 'points_to_win', g.points_to_win,
+              'game', json_object('status', g.status, 'played_on', g.played_on, 'points_to_win', g.points_to_win,
                 'pok', g.pok, 'te', g.te, 'map_string', g.map_string, 'ti_assistant_url', g.ti_assistant_url,
                 'notes', g.notes, 'created_by', g.created_by, 'updated_by', g.updated_by,
                 'updated_at', g.updated_at, 'deleted_at', g.deleted_at),
@@ -164,50 +184,71 @@ function attach(games, seatRows) {
   const by = new Map(games.map((g) => [g.id, []]));
   for (const s of seatRows) by.get(s.game_id)?.push(seatOut(s));
   return games.map((g) => ({
-    id: g.id, played_on: g.played_on, points_to_win: g.points_to_win, pok: !!g.pok, te: !!g.te,
+    id: g.id, status: g.status, played_on: g.played_on, points_to_win: g.points_to_win, pok: !!g.pok, te: !!g.te,
+    map_string: g.map_string, ti_assistant_url: g.ti_assistant_url,
     seats: by.get(g.id),
   }));
+}
+
+async function seatsFor(db, games) {
+  if (!games.length) return [];
+  const { results } = await db.prepare(
+    `${SEAT_SELECT} WHERE s.game_id IN (SELECT value FROM json_each(?)) ${SEAT_ORDER}`
+  ).bind(JSON.stringify(games.map((g) => g.id))).all();
+  return results;
+}
+
+// Soonest first, no paging: there are only ever a handful.
+async function listPlanned(db) {
+  const { results } = await db.prepare(
+    "SELECT * FROM games WHERE deleted_at IS NULL AND status = 'planned' ORDER BY played_on ASC, id ASC LIMIT 50"
+  ).all();
+  return json({ games: attach(results, await seatsFor(db, results)), next: null });
+}
+
+// Stats and the admin page read this; planned games don't count.
+async function listAllFinished(db) {
+  const { results: games } = await db.prepare(
+    "SELECT * FROM games WHERE deleted_at IS NULL AND status = 'finished' ORDER BY played_on DESC, id DESC"
+  ).all();
+  const { results: seats } = await db.prepare(
+    `${SEAT_SELECT} JOIN games g ON g.id = s.game_id WHERE g.deleted_at IS NULL AND g.status = 'finished' ${SEAT_ORDER}`
+  ).all();
+  return json({ games: attach(games, seats), next: null });
+}
+
+async function finishedPage(db, before, limit) {
+  if (before === null) {
+    const { results } = await db.prepare(
+      "SELECT * FROM games WHERE deleted_at IS NULL AND status = 'finished' ORDER BY played_on DESC, id DESC LIMIT ?"
+    ).bind(limit + 1).all();
+    return results;
+  }
+  const cursor = Number(before);
+  const ref = Number.isInteger(cursor)
+    ? await db.prepare("SELECT played_on, id FROM games WHERE id = ?").bind(cursor).first() : null;
+  if (!ref) throw bad("Unknown before cursor.");
+  const { results } = await db.prepare(
+    `SELECT * FROM games WHERE deleted_at IS NULL AND status = 'finished'
+       AND (played_on < ? OR (played_on = ? AND id < ?))
+     ORDER BY played_on DESC, id DESC LIMIT ?`
+  ).bind(ref.played_on, ref.played_on, ref.id, limit + 1).all();
+  return results;
 }
 
 export async function listGames(ctx) {
   const db = ctx.env.DB;
   const q = ctx.url.searchParams;
-  if (q.get("full") === "1") {
-    const { results: games } = await db.prepare(
-      "SELECT * FROM games WHERE deleted_at IS NULL ORDER BY played_on DESC, id DESC"
-    ).all();
-    const { results: seats } = await db.prepare(
-      `${SEAT_SELECT} JOIN games g ON g.id = s.game_id WHERE g.deleted_at IS NULL ${SEAT_ORDER}`
-    ).all();
-    return json({ games: attach(games, seats), next: null });
-  }
+  const status = q.get("status");
+  if (status !== null && status !== "planned" && status !== "finished") throw bad("status must be planned or finished.");
+  if (status === "planned") return listPlanned(db);
+  if (q.get("full") === "1") return listAllFinished(db);
 
   const limit = Math.min(Math.max(parseInt(q.get("limit") ?? "50", 10) || 50, 1), 100);
-  const before = q.get("before");
-  let results;
-  if (before === null) {
-    ({ results } = await db.prepare(
-      "SELECT * FROM games WHERE deleted_at IS NULL ORDER BY played_on DESC, id DESC LIMIT ?"
-    ).bind(limit + 1).all());
-  } else {
-    const cursor = Number(before);
-    const ref = Number.isInteger(cursor)
-      ? await db.prepare("SELECT played_on, id FROM games WHERE id = ?").bind(cursor).first() : null;
-    if (!ref) throw bad("Unknown before cursor.");
-    ({ results } = await db.prepare(
-      `SELECT * FROM games WHERE deleted_at IS NULL AND (played_on < ? OR (played_on = ? AND id < ?))
-       ORDER BY played_on DESC, id DESC LIMIT ?`
-    ).bind(ref.played_on, ref.played_on, ref.id, limit + 1).all());
-  }
+  const results = await finishedPage(db, q.get("before"), limit);
   const more = results.length > limit;
   const page = results.slice(0, limit);
-  let seats = [];
-  if (page.length) {
-    ({ results: seats } = await db.prepare(
-      `${SEAT_SELECT} WHERE s.game_id IN (SELECT value FROM json_each(?)) ${SEAT_ORDER}`
-    ).bind(JSON.stringify(page.map((g) => g.id))).all());
-  }
-  return json({ games: attach(page, seats), next: more ? page[page.length - 1].id : null });
+  return json({ games: attach(page, await seatsFor(db, page)), next: more ? page[page.length - 1].id : null });
 }
 
 async function loadGame(db, id) {
@@ -227,7 +268,7 @@ export async function getGame(ctx, id) {
   const who = (pid) => ({ id: pid, name: names.results.find((p) => p.id === pid)?.name ?? null });
   return json({
     game: {
-      id: game.id, played_on: game.played_on, points_to_win: game.points_to_win,
+      id: game.id, status: game.status, played_on: game.played_on, points_to_win: game.points_to_win,
       pok: !!game.pok, te: !!game.te, map_string: game.map_string, ti_assistant_url: game.ti_assistant_url,
       notes: game.notes, created_by: who(game.created_by), updated_by: who(game.updated_by),
       created_at: game.created_at, updated_at: game.updated_at, deleted_at: game.deleted_at,
@@ -255,9 +296,9 @@ export async function createGame(ctx) {
   try {
     await db.batch([
       db.prepare(
-        `INSERT INTO games (client_id, played_on, points_to_win, pok, te, map_string, ti_assistant_url, notes, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(g.client_id, g.played_on, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes, me, me),
+        `INSERT INTO games (client_id, status, played_on, points_to_win, pok, te, map_string, ti_assistant_url, notes, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(g.client_id, g.status, g.played_on, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes, me, me),
       ...g.seats.map((s) => seatInsert(db, true, g.client_id, s)),
     ]);
   } catch (err) {
@@ -279,12 +320,13 @@ export async function updateGame(ctx, id) {
     throw new HttpError(403, "You can only edit games you created or played in.");
   }
   const g = await validate(await readJson(ctx.request), db, { creating: false });
+  if (found.game.status === "finished" && g.status === "planned") throw bad("A finished game can't go back to planned.");
   await db.batch([
     revisionInsert(db, id, ctx.player.id),
     db.prepare(
-      `UPDATE games SET played_on = ?, points_to_win = ?, pok = ?, te = ?, map_string = ?, ti_assistant_url = ?,
+      `UPDATE games SET status = ?, played_on = ?, points_to_win = ?, pok = ?, te = ?, map_string = ?, ti_assistant_url = ?,
               notes = ?, updated_by = ?, updated_at = ? WHERE id = ?`
-    ).bind(g.played_on, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes,
+    ).bind(g.status, g.played_on, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes,
       ctx.player.id, nowIso(), id),
     db.prepare("DELETE FROM seats WHERE game_id = ?").bind(id),
     ...g.seats.map((s) => seatInsert(db, false, id, s)),

@@ -18,5 +18,7 @@ export const FACTION_NAMES = {
   F_yin: "The Yin Brotherhood", F_yssaril: "The Yssaril Tribes",
 };
 export const FACTION_IDS = Object.keys(FACTION_NAMES);
-export const factionName = (id) => FACTION_NAMES[id] ?? id;
+export const NO_FACTION = "Faction not picked";
+// A planned seat can have no faction yet.
+export const factionName = (id) => (id ? FACTION_NAMES[id] ?? id : NO_FACTION);
 export const COLORS = ["black", "blue", "green", "orange", "pink", "purple", "red", "yellow"];

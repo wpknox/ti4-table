@@ -101,9 +101,11 @@ export function tileLabel(tile, info, seats, homeSeat) {
  * @param {object} [opts.symbols]  faction id -> inline <svg> markup (from factions.js); absent in Node
  * @param {string} [opts.view]  "analysis" (default) or "art": tile images instead of numbers
  * @param {Set<string>} [opts.art]  tile ids that have an image (the manifest's keys); others keep the analysis look
+ * @param {object} [opts.seatLabels]  seat number -> { name?, faction? }: a player name under the numeral, and that
+ *   faction's symbol (a key of `symbols`) instead of the home tile's own. Without it the output is unchanged.
  * @returns {string} an <svg> element
  */
-export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set() } = {}) {
+export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set(), seatLabels = null } = {}) {
   const isArt = view === "art";
   const seatAt = new Map(parsed.homes.map((pos, i) => [pos, i + 1]));
   const { slice, sharedPos } = sliceMaps(report);
@@ -122,7 +124,7 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
     `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>${defs}</defs>`,
   ];
 
-  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols };
+  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels };
   for (const c of cells) out.push(...cellMarkup(c, ctx));
   out.push(`</svg>`);
   return out.join("");
@@ -131,7 +133,7 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
 // ── Pieces of a tile ───────────────────────────────────────────────────────
 
 // Everything for one hex: the group, its face, its marks and its edge.
-function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols }) {
+function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels }) {
   const { t } = c;
   const info = tiles[t.id];
   const homeSeat = seatAt.get(t.pos);
@@ -156,7 +158,7 @@ function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols })
   if (shared) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
 
   if (info?.type === "hyperlane" && info.hyperlanes) out.push(...laneLines(info, t));
-  else if (homeSeat) out.push(...homeMarks(info, homeSeat, symbols));
+  else if (homeSeat) out.push(...homeMarks(info, homeSeat, symbols, seatLabels?.[homeSeat]));
   else if (t.id !== "0") out.push(...systemMarks(info));
   out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
   return out;
@@ -218,15 +220,23 @@ function laneLines(info, t) {
   });
 }
 
-function homeMarks(info, homeSeat, symbols) {
+const NAME_MAX = 12;
+const shortName = (name) => {
+  const chars = [...String(name)];
+  return chars.length > NAME_MAX ? chars.slice(0, NAME_MAX - 1).join("") + "…" : chars.join("");
+};
+
+function homeMarks(info, homeSeat, symbols, label) {
   const out = [];
   // A small faction symbol above the numeral when we have one; the numeral stays the main thing.
-  const sym = symbols[factionId(info?.faction)];
+  // A planned seat's own faction wins over the one printed on the home tile.
+  const sym = label?.faction ? symbols[label.faction] : symbols[factionId(info?.faction)];
   if (sym) {
     const S = 9;
     out.push(sym.replace(/<svg\s/, `<svg class="fsym-map" x="${-S / 2}" y="-15" width="${S}" height="${S}" `));
   }
   out.push(`<text class="seat-num" x="0" y="${sym ? 4 : 0}">${homeSeat}</text>`);
+  if (label?.name) out.push(`<text class="seat-name" x="0" y="${sym ? 11.5 : 9}">${esc(shortName(label.name))}</text>`);
   return out;
 }
 

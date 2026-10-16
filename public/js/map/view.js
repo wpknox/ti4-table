@@ -9,7 +9,8 @@ import { navigate, setUrl } from "../router.js";
 import { parseMapString } from "./parse.js";
 import { analyze, describe } from "./analyze.js";
 import { renderMapSvg } from "./svg.js";
-import { factionId, loadSymbol, symbolSync, symbolSlot, hydrateSymbols } from "../factions.js";
+import { factionId, symbolSlot, hydrateSymbols } from "../factions.js";
+import { loadTiles, loadArt, tileSymbols } from "./load.js";
 
 // SCPT 2021 Final, a known-good 6-player map (copied from scripts/fixtures/maps.mjs).
 const EXAMPLE =
@@ -17,30 +18,7 @@ const EXAMPLE =
 
 const TECH = { green: "biotic", blue: "propulsion", yellow: "cybernetic", red: "warfare" };
 
-let tilesPromise;
-const loadTiles = () =>
-  (tilesPromise ??= fetch("/data/tiles.json")
-    .then((r) => {
-      if (!r.ok) throw new Error(`Tile data didn't load (${r.status})`);
-      return r.json();
-    })
-    .then((d) => d.tiles)
-    .catch((e) => {
-      tilesPromise = undefined; // let a later visit retry
-      throw e;
-    }));
-
 const fmt = (n) => String(Math.round(n * 10) / 10);
-let artPromise;
-const loadArt = () =>
-  (artPromise ??= fetch("/img/tiles/manifest.json")
-    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
-    .then((d) => new Set(Object.keys(d.tiles)))
-    .catch(() => {
-      artPromise = undefined;
-      return new Set(); // no manifest: every hex keeps its analysis look
-    }));
-
 const mapHref = (m, seat, view) => {
   const q = new URLSearchParams({ m });
   if (seat) q.set("seat", seat);
@@ -114,10 +92,8 @@ export async function renderMap(url, main, ctx) {
   }
   const report = analyze(parsed, tiles);
   // Preload the symbols this map needs, so renderMapSvg stays synchronous and pure.
-  const ids = [...new Set(parsed.tiles.map((t) => factionId(tiles[t.id]?.faction)).filter(Boolean))];
-  await Promise.all(ids.map(loadSymbol));
+  const symbols = await tileSymbols(parsed, tiles);
   if (ctx.stale()) return;
-  const symbols = Object.fromEntries(ids.map((id) => [id, symbolSync(id)]));
   const art = view === "art" ? await loadArt() : new Set();
   if (ctx.stale()) return;
   const said = describe(report);
@@ -140,6 +116,7 @@ export async function renderMap(url, main, ctx) {
     <div class="map-right">
       ${notesHtml(notes)}
       <div class="seats">${said.seats.map((s) => seatBlock(s, report.seats[s.seat - 1], report)).join("")}</div>
+      <p class="plan-link"><a href="${esc(`/games/new?${new URLSearchParams({ plan: "1", m })}`)}">Plan a game on this map</a></p>
     </div>
   </div>`;
 

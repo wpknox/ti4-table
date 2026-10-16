@@ -41,7 +41,18 @@ a.btn-primary { color: var(--void); }
 .gwho .fsym.win { color: var(--resource); }
 .gmeta { color: var(--dust); font-size: var(--t-s); }
 .drow { display: flex; align-items: center; gap: 8px; }
-.drow .grow { flex: 1; }
+.drow { border-bottom: 1px solid color-mix(in srgb, var(--seam) 55%, transparent); }
+.drow .grow { flex: 1; min-width: 0; border-bottom: 0; }
+/* The TI Assistant link beside a list row. It's its own link, so the row stays one tap target. */
+.ti-link { flex: none; display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; font: 600 var(--t-s)/1 var(--display); font-stretch: 105%; color: var(--influence); }
+.ti-link:focus-visible { outline: 2px solid var(--influence); outline-offset: 2px; border-radius: var(--radius-s); }
+
+/* A game's map, under its seats; the plan form draws the same figure above its seat cards. */
+.game-map, .plan-map { margin: 16px -4px; }
+.game-map .mapsvg, .plan-map .mapsvg { height: 340px; }
+.game-map .hex, .plan-map .hex { cursor: default; }
+@media (min-width: 900px) { .game-map .mapsvg, .plan-map .mapsvg { height: 460px; } }
+.plan-map:empty { display: none; }
 
 /* One game: scores are the big numbers. */
 .gtitle { margin-bottom: 4px; }
@@ -52,6 +63,8 @@ a.btn-primary { color: var(--void); }
 .gscore { flex: none; width: 2.2em; text-align: right; font: 700 var(--t-xl)/1 var(--display); font-stretch: 120%; font-variant-numeric: tabular-nums; }
 .gseat.is-winner .gscore { width: auto; min-width: 1.4em; font-size: clamp(3rem, 16vw, var(--t-num)); font-weight: 800; color: transparent; -webkit-text-stroke: 1.5px var(--resource); }
 .gseat.is-winner { padding: 6px 4px 10px; }
+.gseat.planned .gscore { color: var(--resource); }
+.gfaction.unpicked { color: var(--dust); font-weight: 400; }
 .gseat-body { display: flex; flex-direction: column; min-width: 0; }
 .gfaction { font-weight: 600; display: flex; align-items: center; }
 .gfaction .fsym { color: var(--dust); }
@@ -177,3 +190,6 @@ a.btn-primary { color: var(--void); }
 .revseats { list-style: none; padding: 0; margin: 8px 0; }
 .revseats li { display: flex; align-items: center; padding: 4px 0; font-size: var(--t-s); overflow-wrap: anywhere; }
 .revseats .fsym { color: var(--dust); }
+
+/* Plan form: the read-only map string and the live map. */
+.plan-mapstring { margin: 0 0 4px; padding: 10px 12px; background: var(--hull); border: 1px solid var(--seam); border-radius: var(--radius-m); font-size: var(--t-s); color: var(--dust); overflow-wrap: anywhere; max-height: 5.5em; overflow: auto; }

@@ -352,6 +352,71 @@ async function run() {
   r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, adminB.id]) });
   check("Another player is unaffected by that limit", r.status === 201, r.status);
 
+  // Planned games
+  const pIds = [e1.id, e2.id, g1p3.data.id];
+  const planBody = (over = {}) => {
+    const b = gameBody(pIds, { status: "planned", played_on: daysFromNow(14), ...over });
+    b.seats.forEach((st) => { st.faction = null; st.points = 0; st.is_winner = false; st.is_speaker_start = false; });
+    return b;
+  };
+  const planned = planBody();
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: planned });
+  const P1 = r.data?.id;
+  check("Planned create with null factions and a future date -> 201", r.status === 201 && Number.isInteger(P1), `${r.status} ${JSON.stringify(r.data)}`);
+  const pg = (await api("GET", `/api/games/${P1}`, { cookie: e1.cookie })).data?.game;
+  check("The planned game reads back as planned with null factions",
+    pg?.status === "planned" && pg.seats.every((st) => st.faction === null && st.points === 0 && !st.is_winner));
+  const dupF = planBody();
+  dupF.seats[0].faction = dupF.seats[1].faction = "F_sol";
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: dupF });
+  check("Planned with a duplicate faction -> 400", r.status === 400, r.status);
+  const dupP = planBody();
+  dupP.seats[1].player_id = dupP.seats[0].player_id;
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: dupP });
+  check("Planned with a duplicate player -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: planBody({ status: "bogus" }) });
+  check("status in the body that is neither planned nor finished -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody(pIds, { played_on: daysFromNow(14) }) });
+  check("A finished game dated in the future is still refused", r.status === 400, r.status);
+
+  const fin = (over, mutate) => {
+    const b = gameBody(pIds, { played_on: today, ...over });
+    mutate?.(b);
+    return b;
+  };
+  r = await api("PUT", `/api/games/${P1}`, { cookie: e1.cookie, body: fin({}, (b) => { b.seats[1].faction = null; }) });
+  check("Finishing with a missing faction -> 400", r.status === 400, r.status);
+  r = await api("PUT", `/api/games/${P1}`, { cookie: e3.cookie, body: planBody() });
+  check("An unseated editor who didn't create the planned game can't edit it (403)", r.status === 403, r.status);
+  const planFull = await api("GET", "/api/games?full=1");
+  check("full=1 excludes planned games", !planFull.data.games.some((g) => g.id === P1));
+  const planList = await api("GET", "/api/games?status=planned");
+  check("status=planned lists only planned games, with map and link fields",
+    planList.status === 200 && planList.data.games.length > 0 &&
+    planList.data.games.every((g) => g.status === "planned" && "map_string" in g && "ti_assistant_url" in g) &&
+    planList.data.games.some((g) => g.id === P1));
+  const finList = await api("GET", "/api/games?status=finished&limit=100");
+  const defList = await api("GET", "/api/games?limit=100");
+  check("status=finished and the default list hold no planned games",
+    [finList, defList].every((l) => l.status === 200 && !l.data.games.some((g) => g.status === "planned")));
+  r = await api("GET", "/api/games?status=bogus");
+  check("status=bogus -> 400", r.status === 400, r.status);
+  r = await api("PUT", `/api/games/${P1}`, { cookie: e2.cookie, body: fin({ notes: "results in" }) });
+  check("A seated editor finishes the planned game -> 200", r.status === 200, r.status);
+  const finFull = await api("GET", "/api/games?full=1");
+  check("The finished game now appears in full=1 and not in status=planned",
+    finFull.data.games.some((g) => g.id === P1 && g.status === "finished") &&
+    !(await api("GET", "/api/games?status=planned")).data.games.some((g) => g.id === P1));
+  r = await api("PUT", `/api/games/${P1}`, { cookie: e1.cookie, body: planBody() });
+  check("Finished -> planned -> 400", r.status === 400, r.status);
+  const prevs = await api("GET", `/api/admin/games/${P1}/revisions`, { cookie: admin.cookie });
+  const planRev = prevs.data?.revisions?.[0];
+  check("The revision taken at finishing records status planned", planRev?.data?.game?.status === "planned");
+  r = await api("POST", `/api/admin/games/${P1}/revert`, { cookie: admin.cookie, body: { revision_id: planRev?.id } });
+  const back = (await api("GET", `/api/games/${P1}`)).data?.game;
+  check("Admin revert of the pre-finish revision restores planned",
+    r.status === 200 && back?.status === "planned" && back.seats.every((st) => st.faction === null));
+
   // Roles
   r = await api("PATCH", `/api/admin/players/${e3.id}`, { cookie: admin.cookie, body: { role: "none" } });
   check("Admin sets Ed Three's role to none", r.status === 200, r.status);

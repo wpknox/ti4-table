@@ -120,6 +120,7 @@ export async function revertGame(ctx, id) {
     revisionInsert(db, id, ctx.player.id),
     db.prepare(
       `UPDATE games SET
+         status = COALESCE(json_extract(r.data, '$.game.status'), 'finished'),
          played_on = json_extract(r.data, '$.game.played_on'),
          points_to_win = json_extract(r.data, '$.game.points_to_win'),
          pok = json_extract(r.data, '$.game.pok'),

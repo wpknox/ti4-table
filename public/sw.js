@@ -5,7 +5,7 @@
 //
 // Bump VERSION when the precache list changes. API calls are never cached.
 
-const VERSION = "v5";
+const VERSION = "v6";
 const CACHE = `ti4table-${VERSION}`;
 const PRECACHE = [
   "/",
@@ -30,6 +30,7 @@ const PRECACHE = [
   "/js/games/ui.js",
   "/js/map/view.js",
   "/js/map/svg.js",
+  "/js/map/load.js",
   "/js/map/parse.js",
   "/js/map/analyze.js",
   "/data/rules.json",

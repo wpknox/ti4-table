@@ -1,8 +1,8 @@
 -- Local-only fake data for development and for checking public/js/games/stats.js.
 -- Never apply this to the production database.
 --
--- Hand count (live games only; game 5 is soft-deleted and must not count):
---   Live games: 4 (ids 1 to 4). Deleted: 1 (id 5).
+-- Hand count (live, finished games only; game 5 is soft-deleted and game 6 is planned, so neither counts):
+--   Live games: 4 (ids 1 to 4). Deleted: 1 (id 5). Planned: 1 (id 6, players A, B and E, no factions).
 --   Wins per player: Player A 2 (games 1, 3), Player B 1 (game 2), Player C 1 (game 4),
 --                    Players D, E and F 0.
 --   Games per player: A 4, B 3, C 4, D 2, E 3, F 3.
@@ -52,3 +52,12 @@ INSERT INTO seats (game_id, player_id, faction, color, seat_index, points, is_wi
   (5, 1, 'F_argent',   'yellow', 1, 9,  0, 0),
   (5, 2, 'F_lizix',    'blue',   2, 7,  0, 0),
   (5, 6, 'F_nomad',    'black',  3, 5,  0, 0);
+
+-- Planned game: stats must ignore it (A, B and E would each gain a game if they counted it).
+INSERT INTO games (id, client_id, status, played_on, points_to_win, pok, te, notes, created_by, updated_by) VALUES
+  (6, 'seed-game-0006', 'planned', '2026-12-05', 10, 1, 0, 'Not played yet.', 1, 1);
+
+INSERT INTO seats (game_id, player_id, faction, color, seat_index, points, is_winner, is_speaker_start) VALUES
+  (6, 1, NULL, NULL, 0, 0, 0, 0),
+  (6, 2, NULL, NULL, 1, 0, 0, 0),
+  (6, 5, NULL, NULL, 2, 0, 0, 0);

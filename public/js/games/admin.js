@@ -125,8 +125,9 @@ function friendHtml(p, me) {
 // can read each with GET /api/games/:id. Capped, to keep this cheap.
 async function loadDeleted(env, box) {
   try {
-    const { games } = await get("/api/games?full=1");
-    const live = new Set(games.map((g) => g.id));
+    // Planned games are live too, so they aren't gaps.
+    const [{ games }, { games: planned }] = await Promise.all([get("/api/games?full=1"), get("/api/games?status=planned")]);
+    const live = new Set([...games, ...planned].map((g) => g.id));
     const max = Math.max(0, ...live);
     const gaps = [];
     for (let i = 1; i <= max && gaps.length < 60; i++) if (!live.has(i)) gaps.push(i);
@@ -135,7 +136,7 @@ async function loadDeleted(env, box) {
     if (env.ctx.stale()) return;
     box.innerHTML = found.length
       ? `<ul class="glist">${found
-          .map((g) => `<li class="drow"><a class="grow" href="/games/${g.id}"><span class="gdate">${esc(dayShort(g.played_on))}</span><span class="gmain"><span class="gwho">${esc(g.seats.find((s) => s.is_winner)?.player_name ?? "No winner")} won as ${esc(factionName(g.seats.find((s) => s.is_winner)?.faction ?? ""))}</span><span class="gmeta">Logged by ${esc(g.created_by?.name ?? "someone")}</span></span></a>
+          .map((g) => `<li class="drow"><a class="grow" href="/games/${g.id}"><span class="gdate">${esc(dayShort(g.played_on))}</span><span class="gmain"><span class="gwho">${esc(g.seats.find((s) => s.is_winner)?.player_name ?? "No winner")} won as ${esc(factionName(g.seats.find((s) => s.is_winner)?.faction))}</span><span class="gmeta">Logged by ${esc(g.created_by?.name ?? "someone")}</span></span></a>
             <button type="button" class="btn" data-restore="${g.id}">Restore</button></li>`)
           .join("")}</ul>`
       : `<p class="muted">No deleted games.</p>`;
