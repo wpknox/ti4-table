@@ -31,9 +31,20 @@ const loadTiles = () =>
     }));
 
 const fmt = (n) => String(Math.round(n * 10) / 10);
-const mapHref = (m, seat) => {
+let artPromise;
+const loadArt = () =>
+  (artPromise ??= fetch("/img/tiles/manifest.json")
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
+    .then((d) => new Set(Object.keys(d.tiles)))
+    .catch(() => {
+      artPromise = undefined;
+      return new Set(); // no manifest: every hex keeps its analysis look
+    }));
+
+const mapHref = (m, seat, view) => {
   const q = new URLSearchParams({ m });
   if (seat) q.set("seat", seat);
+  if (view === "art") q.set("view", "art");
   return `/map?${q}`;
 };
 const marker = (sev) =>
@@ -45,6 +56,10 @@ export async function renderMap(url, main, ctx) {
   document.title = "Map · TI4 Table";
   const m = (url.searchParams.get("m") ?? "").trim();
   const seatParam = parseInt(url.searchParams.get("seat") ?? "", 10);
+  // The URL alone decides (absent = analysis), so Back/Forward and shared links are exact.
+  // The remembered choice only goes into links for *new* maps (form, example).
+  const view = url.searchParams.get("view") === "art" ? "art" : "analysis";
+  const dflt = store.get("mapView", "analysis");
 
   main.innerHTML = `<div class="map-page">
     <form class="map-form" novalidate>
@@ -53,7 +68,7 @@ export async function renderMap(url, main, ctx) {
       <p class="map-hint" id="map-hint" role="status"></p>
       <div class="map-actions">
         <button class="btn btn-primary" type="submit">Analyse map</button>
-        <a class="map-example" href="${esc(mapHref(EXAMPLE))}">Try an example map</a>
+        <a class="map-example" href="${esc(mapHref(EXAMPLE, 0, dflt))}">Try an example map</a>
       </div>
     </form>
     <div class="map-out"></div>
@@ -71,7 +86,7 @@ export async function renderMap(url, main, ctx) {
       return;
     }
     hint.textContent = "";
-    navigate(mapHref(v));
+    navigate(mapHref(v, 0, dflt));
   });
 
   const out = $(".map-out", main);
@@ -103,6 +118,8 @@ export async function renderMap(url, main, ctx) {
   await Promise.all(ids.map(loadSymbol));
   if (ctx.stale()) return;
   const symbols = Object.fromEntries(ids.map((id) => [id, symbolSync(id)]));
+  const art = view === "art" ? await loadArt() : new Set();
+  if (ctx.stale()) return;
   const said = describe(report);
   const seat = seatParam >= 1 && seatParam <= report.seats.length ? seatParam : 0;
 
@@ -113,7 +130,11 @@ export async function renderMap(url, main, ctx) {
     <div class="map-left">
       <h1 class="verdict">${esc(said.verdict)}</h1>
       <p class="map-sub">${esc(plural(report.seats.length, "seat"))}, ${esc(plural(parsed.tiles.length, "tile"))}.</p>
-      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { symbols, title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
+      <div class="view-toggle" role="group" aria-label="Map view">
+        <button type="button" data-view="analysis" aria-pressed="${view !== "art"}">Analysis</button>
+        <button type="button" data-view="art" aria-pressed="${view === "art"}">Tile art</button>
+      </div>
+      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { view, art, symbols, title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
       <p class="tile-note" id="tile-note" aria-live="polite"></p>
     </div>
     <div class="map-right">
@@ -141,9 +162,18 @@ export async function renderMap(url, main, ctx) {
       b.classList.toggle("sel", on);
       $(".seat-pick", b).setAttribute("aria-pressed", String(on));
     }
-    if (touchUrl) setUrl(mapHref(m, n));
+    svg.classList.toggle("has-sel", !!n);
+    if (touchUrl) setUrl(mapHref(m, n, view));
   }
   select(seat, { url: false });
+
+  for (const b of $$(".view-toggle button", out)) {
+    b.addEventListener("click", () => {
+      if (b.dataset.view === view) return;
+      store.set("mapView", b.dataset.view);
+      navigate(mapHref(m, selected, b.dataset.view)); // a real history entry, so Back undoes it
+    });
+  }
 
   const toggle = (n) => select(selected === n ? 0 : n);
 

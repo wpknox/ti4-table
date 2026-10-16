@@ -92,9 +92,12 @@ export function tileLabel(tile, info, seats, homeSeat) {
  * @param {object} report  analyze() result
  * @param {object} tiles   tiles.json `tiles`
  * @param {object} [opts.symbols]  faction id -> inline <svg> markup (from factions.js); absent in Node
+ * @param {string} [opts.view]  "analysis" (default) or "art": tile images instead of numbers
+ * @param {Set<string>} [opts.art]  tile ids that have an image (the manifest's keys); others keep the analysis look
  * @returns {string} an <svg> element
  */
-export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {} } = {}) {
+export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set() } = {}) {
+  const isArt = view === "art";
   const seatAt = new Map(parsed.homes.map((pos, i) => [pos, i + 1]));
   const slice = new Map(); // pos -> seat numbers
   const sharedPos = new Set();
@@ -117,9 +120,9 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
 
   const out = [];
   out.push(
-    `<svg class="mapsvg" viewBox="${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)}" role="group" aria-labelledby="map-svg-title" xmlns="http://www.w3.org/2000/svg">`,
+    `<svg class="mapsvg${isArt ? " art" : ""}" viewBox="${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)}" role="group" aria-labelledby="map-svg-title" xmlns="http://www.w3.org/2000/svg">`,
     `<title id="map-svg-title">${esc(title)}</title>`,
-    `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern></defs>`,
+    `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>${isArt ? `<clipPath id="hexclip"><polygon points="${hexPoints(R * GAP)}"/></clipPath>` : ""}</defs>`,
   );
 
   for (const c of cells) {
@@ -135,6 +138,8 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
     else if (type === "hyperlane") cls.push("lane");
     else if (type === "mecatol") cls.push("mecatol");
     if (type === "red" || anomalyList(info).length) cls.push("red");
+    const hasArt = isArt && art.has(t.id);
+    if (hasArt) cls.push("pic");
     const attrs = [
       `class="${cls.join(" ")}"`,
       `data-pos="${t.pos}"`,
@@ -146,6 +151,21 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
     ].filter(Boolean);
     out.push(`<g ${attrs.join(" ")}>`);
     out.push(`<polygon class="face" points="${hexPoints(R * GAP)}"/>`);
+    if (hasArt) {
+      // Rotation is clockwise in 60-degree steps about the hex centre, which is the group's origin.
+      const rot = t.rotation ?? 0;
+      const w = 2 * R * GAP, h = f((w * 222) / 256);
+      out.push(
+        `<g clip-path="url(#hexclip)" pointer-events="none"><image href="/img/tiles/${esc(t.id)}.webp" x="${-w / 2}" y="${f(-h / 2)}" width="${w}" height="${h}" loading="lazy" decoding="async"${rot ? ` transform="rotate(${rot * 60})"` : ""}/></g>`,
+      );
+      out.push(`<polygon class="dim" points="${hexPoints(R * GAP)}"/>`);
+      if (!homeSeat && sharedPos.has(t.pos)) out.push(`<polygon class="shared-edge" points="${hexPoints(R * GAP * 0.88)}"/>`);
+      if (homeSeat) {
+        out.push(`<circle class="num-scrim" r="9.5"/>`, `<text class="seat-num" x="0" y="0">${homeSeat}</text>`);
+      }
+      out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
+      continue;
+    }
     if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
     if (!homeSeat && sharedPos.has(t.pos)) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
 

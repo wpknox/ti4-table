@@ -3,10 +3,12 @@
 import { addSection, start } from "./router.js";
 import { renderRules } from "./rules/view.js";
 import { renderMap } from "./map/view.js";
+import { renderGames } from "./games/view.js";
 import { renderAbout } from "./about.js";
 
 addSection({ prefix: "/rules", label: "Rules", render: renderRules });
 addSection({ prefix: "/map", label: "Map", render: renderMap });
+addSection({ prefix: "/games", label: "Games", render: renderGames });
 addSection({ prefix: "/about", label: "About", render: renderAbout, nav: false });
 
 start();

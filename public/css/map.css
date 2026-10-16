@@ -119,3 +119,22 @@
 
 /* Faction symbol above the seat numeral on a home hex. */
 .mapsvg .fsym-map { color: var(--dust); fill: currentColor; pointer-events: none; overflow: visible; }
+
+/* View toggle: two quiet text buttons, the chosen one underlined in --influence. */
+.view-toggle { display: flex; gap: 20px; margin: 0 0 4px; }
+.view-toggle button {
+  min-height: 44px; padding: 0 2px; font: 600 var(--t-s)/1 var(--display); font-stretch: 105%;
+  color: var(--dust); border-bottom: 2px solid transparent;
+}
+.view-toggle button[aria-pressed="true"] { color: var(--star); border-bottom-color: var(--influence); }
+.view-toggle button:hover:not([aria-pressed="true"]) { color: var(--star); }
+
+/* Tile art. The face stays underneath as the "before it loads" fill. */
+.mapsvg.art .dim { fill: #05070f; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+.mapsvg.art.has-sel .hex:not(.sel) .dim { opacity: 0.62; }
+.mapsvg.art .hex.sel .face { fill: var(--hull); }
+.mapsvg.art .hex.sel .edge { stroke: var(--star); stroke-width: 1.6; }
+.mapsvg.art .shared-edge { fill: none; stroke: var(--star); stroke-width: 1; stroke-dasharray: 3 2.5; opacity: 0.8; pointer-events: none; }
+.mapsvg.art .num-scrim { fill: #05070f; opacity: 0.72; pointer-events: none; }
+.mapsvg.art .hex.pic .face { fill: var(--hull-2); }
+@media (prefers-reduced-motion: reduce) { .mapsvg.art .dim { transition: none; } }

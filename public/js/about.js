@@ -16,6 +16,9 @@ export function renderAbout(url, main) {
     </ul>
     <p>Those repositories carry no licence for the artwork. Our permission to use it comes only from the fan policy above.</p>
 
+    <h2>Tile images</h2>
+    <p>The map's “Tile art” view shows tile images from ${ext("https://github.com/AsyncTI4/TI4_map_generator_bot", "AsyncTI4/TI4_map_generator_bot")}. They are artwork from <i>Twilight Imperium: Fourth Edition</i>, © Fantasy Flight Games, used under the same fan content policy and resized for the web.</p>
+
     <h2>Space image</h2>
     <p>Hubble eXtreme Deep Field.</p>
     <p>Credit: NASA, ESA, G. Illingworth, D. Magee, and P. Oesch (University of California, Santa Cruz), R. Bouwens (Leiden University), and the HUDF09 Team</p>
