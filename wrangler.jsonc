@@ -1,0 +1,13 @@
+{
+  "name": "ti4-table",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ti4-table",
+      "database_id": "1bfe12d4-66d8-43a0-bf88-fa4ea482e943",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

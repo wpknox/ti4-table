@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev",
+    "db:migrate:local": "wrangler d1 migrations apply ti4-table --local",
+    "db:seed:local": "wrangler d1 execute ti4-table --local --file db/seed.sql",
+    "check:api": "node scripts/check-api.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.0"
+  }
+}
