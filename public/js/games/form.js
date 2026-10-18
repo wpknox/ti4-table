@@ -10,42 +10,19 @@
 // `client_id` is made once when the form opens and kept in the draft, so a
 // retry after a lost response can't log the game twice.
 
-import { $, $$, esc, store, toast } from "../lib.js";
+import { $, $$, store, toast } from "../lib.js";
 import { navigate, back } from "../router.js";
 import { hydrateSymbols } from "../factions.js";
 import { get, post, put } from "./api.js";
-import { FACTION_IDS, factionName, COLORS } from "./names.js";
+import { factionName } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
-import { tabs, todayLocal, safeTiLink, mapHref, cap, sym, errorBlock } from "./ui.js";
-
-const MIN_SEATS = 3, MAX_SEATS = 8, START_SEATS = 6;
-
-let keySeq = 0;
-const newSeat = () => ({ key: `s${++keySeq}`, player_id: null, player_name: "", faction: "", color: "", seat_index: null, points: 0 });
-
-const blank = () => ({
-  client_id: crypto.randomUUID(),
-  played_on: todayLocal(),
-  points_to_win: 10,
-  pok: true,
-  te: false,
-  map_string: "",
-  ti_assistant_url: "",
-  notes: "",
-  seats: Array.from({ length: START_SEATS }, newSeat),
-  winner: null, // seat key the user picked by hand, or null for "top score"
-  speaker: null, // seat key
-});
-
-// ── Winner ─────────────────────────────────────────────────────────────────
-
-// { key } when decided, { tied: [keys], points } when the top score is shared.
-function pickWinner(st) {
-  if (st.winner && st.seats.some((s) => s.key === st.winner)) return { key: st.winner, manual: true };
-  const top = Math.max(...st.seats.map((s) => s.points));
-  const best = st.seats.filter((s) => s.points === top);
-  return best.length === 1 ? { key: best[0].key } : { tied: best.map((s) => s.key), points: top };
-}
+import { tabs, todayLocal, safeTiLink, mapHref, sym, errorBlock } from "./ui.js";
+import { checkGameBody } from "./validate.js";
+import {
+  MAX_SEATS, newSeat, blank, pickWinner, modeOf, usableDraft, fitSeats, fromGame, sanitiseDraft, toBody,
+} from "./form-state.js";
+import { formHtml, seatHtml } from "./form-html.js";
+import { bindCombo, playerOptions, factionOptions } from "./combo.js";
 
 // ── Entry ──────────────────────────────────────────────────────────────────
 
@@ -94,72 +71,6 @@ export async function renderForm(env, editId) {
   new Form(env, editId, draftKey, st, players.filter((p) => !p.archived), game, { ...mode, model }).mount(restored);
 }
 
-// plan: saves as planned. finish: a planned game being turned into a finished one.
-function modeOf(env, game) {
-  const q = env.url.searchParams;
-  if (!game) return { plan: q.get("plan") === "1", finish: false };
-  const planned = game.status === "planned";
-  const finish = planned && q.get("finish") === "1";
-  return { plan: planned && !finish, finish };
-}
-
-// A saved draft only comes back in the mode it was made in, and a plan link with a
-// map only restores a draft for that same map (otherwise the new map would be lost).
-function usableDraft(draft, mode, st) {
-  if (!draft || !Array.isArray(draft.seats) || !draft.seats.length) return false;
-  if ((draft.plan === true) !== mode.plan) return false;
-  return !(mode.plan && st.map_string && draft.map_string !== st.map_string);
-}
-
-// Plan seat N is map seat N: pad or trim to the map's seat count and number them.
-function fitSeats(st, n) {
-  while (st.seats.length < n) st.seats.push(newSeat());
-  st.seats.length = n;
-  st.seats.forEach((s, i) => { s.seat_index = i; });
-}
-
-function fromGame(g) {
-  if (!g) return null;
-  const seats = g.seats.map((s) => ({
-    key: `s${++keySeq}`, player_id: s.player_id, player_name: s.player_name, faction: s.faction ?? "",
-    color: s.color ?? "", seat_index: s.seat_index, points: s.points,
-  }));
-  const w = g.seats.findIndex((s) => s.is_winner);
-  const sp = g.seats.findIndex((s) => s.is_speaker_start);
-  return {
-    client_id: null, played_on: g.played_on, points_to_win: g.points_to_win, pok: g.pok, te: g.te,
-    map_string: g.map_string ?? "", ti_assistant_url: g.ti_assistant_url ?? "", notes: g.notes ?? "",
-    seats, winner: w >= 0 ? seats[w].key : null, speaker: sp >= 0 ? seats[sp].key : null,
-  };
-}
-
-// A draft came from storage, so don't trust its shape.
-function sanitiseDraft(d, fallback) {
-  const int = (v, lo, hi, def) => (Number.isInteger(v) && v >= lo && v <= hi ? v : def);
-  const str = (v, def = "") => (typeof v === "string" ? v : def);
-  const seats = d.seats.slice(0, MAX_SEATS).map((s) => ({
-    key: `s${++keySeq}`,
-    player_id: Number.isInteger(s?.player_id) ? s.player_id : null,
-    player_name: str(s?.player_name),
-    faction: FACTION_IDS.includes(s?.faction) ? s.faction : "",
-    color: COLORS.includes(s?.color) ? s.color : "",
-    seat_index: int(s?.seat_index, 0, 7, null),
-    points: int(s?.points, 0, 30, 0),
-  }));
-  while (seats.length < MIN_SEATS) seats.push(newSeat());
-  // Keys are per session, so a draft remembers winner and speaker by position.
-  const at = (i) => (Number.isInteger(i) ? seats[i]?.key ?? null : null);
-  return {
-    client_id: str(d.client_id).length >= 8 ? d.client_id : fallback.client_id ?? crypto.randomUUID(),
-    played_on: /^\d{4}-\d{2}-\d{2}$/.test(str(d.played_on)) ? d.played_on : fallback.played_on,
-    points_to_win: int(d.points_to_win, 4, 20, 10),
-    pok: d.pok !== false, te: d.te === true,
-    map_string: str(d.map_string).slice(0, 2000), ti_assistant_url: str(d.ti_assistant_url).slice(0, 500),
-    notes: str(d.notes).slice(0, 4000),
-    seats, winner: at(d.winner_i), speaker: at(d.speaker_i),
-  };
-}
-
 // ── The form ───────────────────────────────────────────────────────────────
 
 class Form {
@@ -200,35 +111,7 @@ class Form {
 
   // ── Drawing ──
   draw() {
-    const st = this.st;
-    const w = pickWinner(st);
-    this.form.innerHTML = `
-      <div class="fields">
-        <div class="field"><label for="f-date">${this.plan ? "Playing on" : "Date"}</label><input id="f-date" type="date" value="${esc(st.played_on)}" required></div>
-        <div class="field"><span class="label" id="l-ptw">Points to win</span>${this.stepper("ptw", st.points_to_win, "points to win")}</div>
-      </div>
-      <fieldset class="toggles"><legend>Expansions</legend>
-        <label class="tog"><input type="checkbox" role="switch" id="f-pok"${st.pok ? " checked" : ""}><span>Prophecy of Kings</span></label>
-        <label class="tog"><input type="checkbox" role="switch" id="f-te"${st.te ? " checked" : ""}><span>Thunder's Edge</span></label>
-      </fieldset>
-
-      <h2 class="seats-h">Seats</h2>
-      ${this.plan ? `<div class="plan-map" id="plan-map"></div>` : ""}
-      <div id="seats">${st.seats.map((s, i) => this.seatHtml(s, i, w)).join("")}</div>
-      <p class="tie error" id="tie" role="status" hidden></p>
-      <button type="button" class="btn" id="add-seat"${this.addHidden() ? " hidden" : ""}>Add a seat</button>
-
-      <h2>More about the game</h2>
-      ${this.mapFieldHtml()}
-      <div class="field"><label for="f-ti">TI Assistant link <span class="muted">(optional)</span></label>
-        <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://" value="${esc(st.ti_assistant_url)}"></div>
-      <div class="field"><label for="f-notes">Notes <span class="muted">(optional)</span></label>
-        <textarea id="f-notes" rows="3">${esc(st.notes)}</textarea></div>
-
-      <div class="savebar">
-        <button type="submit" class="btn btn-primary save" id="save">${this.saveLabel}</button>
-        ${this.editId ? `<a class="btn" href="/games/${this.editId}">Cancel</a>` : `<button type="button" class="btn" id="cancel">Cancel</button>`}
-      </div>`;
+    this.form.innerHTML = formHtml(this);
     this.updateWinner();
     void hydrateSymbols(this.form);
     void this.updateMap();
@@ -236,18 +119,6 @@ class Form {
 
   addHidden() { return this.fixed || this.st.seats.length >= MAX_SEATS; }
 
-  // Plan mode with a map shows it read-only; changing it happens on the Map page.
-  mapFieldHtml() {
-    const st = this.st;
-    if (this.plan && st.map_string.trim()) {
-      return `<div class="field"><span class="label">Map</span>
-        <p class="plan-mapstring">${esc(st.map_string)}</p>
-        <a class="check-map" href="${esc(mapHref(st.map_string.trim()))}">Change map</a></div>`;
-    }
-    return `<div class="field"><label for="f-map">Map string <span class="muted">(optional)</span></label>
-        <textarea id="f-map" rows="2" spellcheck="false" autocapitalize="off" autocomplete="off">${esc(st.map_string)}</textarea>
-        <a class="check-map" id="check-map" target="_blank" rel="noopener" href="${esc(mapHref(st.map_string))}"${st.map_string.trim() ? "" : " hidden"}>Check this map</a></div>`;
-  }
 
   // Redraws the plan-mode map with each seat's player and faction. A later call
   // makes an earlier one that is still loading drop its result.
@@ -263,41 +134,7 @@ class Form {
     if (seq === this.mapSeq && box.isConnected) box.innerHTML = svg;
   }
 
-  stepper(id, value, what) {
-    return `<div class="stepper" data-step="${id}">
-      <button type="button" class="step" data-d="-1" aria-label="Fewer ${esc(what)}">−</button>
-      <output class="stepnum" aria-live="polite">${esc(value)}</output>
-      <button type="button" class="step" data-d="1" aria-label="More ${esc(what)}">+</button></div>`;
-  }
 
-  seatHtml(s, i) {
-    const n = i + 1;
-    const plan = this.plan;
-    const taken = new Set(this.st.seats.filter((x) => x !== s && x.seat_index != null).map((x) => x.seat_index));
-    const top = plan ? "" : `<div class="seat-top">
-        <span class="seatpts">${this.stepper(`pts:${s.key}`, s.points, `points for seat ${n}`)}</span>
-        <span class="winmark"></span>
-      </div>`;
-    const position = plan ? "" : `<div><label for="i-${s.key}">Seat position <span class="muted">(optional)</span></label>
-          <select id="i-${s.key}" data-f="seat_index"><option value="">Not set</option>${Array.from({ length: 8 }, (_, k) => `<option value="${k}"${s.seat_index === k ? " selected" : ""}${taken.has(k) ? " disabled" : ""}>${k + 1}</option>`).join("")}</select></div>`;
-    return `<fieldset class="seat-card" data-key="${s.key}">
-      <legend>Seat ${n}</legend>
-      ${top}
-      <div class="field"><label for="p-${s.key}">Player</label>
-        <div class="combo" data-kind="player"><input id="p-${s.key}" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Choose a player" value="${esc(s.player_name)}"><ul class="combo-list" role="listbox" hidden></ul></div></div>
-      <div class="field"><label for="fa-${s.key}">Faction${plan ? ' <span class="muted">(optional)</span>' : ""}</label>
-        <div class="combo" data-kind="faction"><span class="combo-sym">${s.faction ? sym(s.faction) : ""}</span><input id="fa-${s.key}" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="${plan ? "Not picked yet" : "Choose a faction"}" value="${esc(s.faction ? factionName(s.faction) : "")}"><ul class="combo-list" role="listbox" hidden></ul></div></div>
-      <div class="field two">
-        <div><label for="c-${s.key}">Colour <span class="muted">(optional)</span></label>
-          <select id="c-${s.key}" data-f="color"><option value="">Not set</option>${COLORS.map((c) => `<option value="${c}"${s.color === c ? " selected" : ""}>${cap(c)}</option>`).join("")}</select></div>
-        ${position}
-      </div>
-      <div class="seat-foot">
-        <label class="radio"><input type="radio" name="speaker" value="${s.key}" data-f="speaker"${this.st.speaker === s.key ? " checked" : ""}><span>Started as speaker</span></label>
-        <button type="button" class="btn rm-seat" data-rm="${s.key}"${this.fixed || this.st.seats.length <= MIN_SEATS ? " hidden" : ""}>Remove seat</button>
-      </div>
-    </fieldset>`;
-  }
 
   // Marks the winning seat and shows the tie message. Cheap; no re-render.
   updateWinner() {
@@ -440,8 +277,7 @@ class Form {
   }
 
   redrawSeats() {
-    const w = pickWinner(this.st);
-    $("#seats", this.form).innerHTML = this.st.seats.map((s, i) => this.seatHtml(s, i, w)).join("");
+    $("#seats", this.form).innerHTML = this.st.seats.map((s, i) => seatHtml(this, s, i)).join("");
     $("#add-seat", this.form).hidden = this.addHidden();
     this.bindCombos();
     this.updateWinner();
@@ -458,101 +294,26 @@ class Form {
       const card = box.closest(".seat-card");
       const seat = () => this.seat(card.dataset.key);
       const input = $("input", box);
-      const list = $(".combo-list", box);
-      const kind = box.dataset.kind;
-      let dirty = false; // has the person typed since opening?
-      let active = -1;
-      let items = [];
-
-      const current = () => {
-        if (kind === "player") return seat().player_name;
-        return seat().faction ? factionName(seat().faction) : "";
-      };
-      const options = () => {
-        const q = dirty ? input.value.trim().toLowerCase() : "";
-        if (kind === "player") {
-          const used = new Set(this.st.seats.filter((x) => x !== seat()).map((x) => x.player_id));
-          const hits = this.players.filter((p) => !used.has(p.id) && p.name.toLowerCase().includes(q));
-          const typed = input.value.trim();
-          const exact = this.players.some((p) => p.name.toLowerCase() === typed.toLowerCase());
-          const out = hits.map((p) => ({ label: p.name, pick: () => this.setPlayer(seat(), p.id, p.name, input) }));
-          out.push(
-            dirty && typed && !exact
-              ? { label: `Add “${typed}” as a guest`, add: true, pick: () => this.addGuest(seat(), typed, input) }
-              : { label: "Add a guest…", hint: true, pick: () => { input.value = ""; dirty = true; input.placeholder = "Type the guest's name"; input.focus(); show(); } },
-          );
-          return out;
-        }
-        const used = new Set(this.st.seats.filter((x) => x !== seat()).map((x) => x.faction));
-        const out = FACTION_IDS.filter((id) => !used.has(id) && factionName(id).toLowerCase().includes(q))
-          .sort((a, b) => factionName(a).replace(/^The /, "").localeCompare(factionName(b).replace(/^The /, "")))
-          .map((id) => ({ label: factionName(id), faction: id, pick: () => this.setFaction(seat(), id, box, input) }));
-        // Factions are often drafted at the table, so a planned seat can go back to none.
-        if (this.plan && !q && seat().faction) out.unshift({ label: "No faction yet", pick: () => this.setFaction(seat(), "", box, input) });
-        return out;
-      };
-      const show = () => {
-        items = options();
-        active = -1;
-        list.innerHTML = items.length
-          ? items.map((o, i) => `<li role="option" id="${input.id}-o${i}" data-i="${i}"${o.add ? ' class="add"' : ""}>${o.faction ? sym(o.faction) : ""}${esc(o.label)}</li>`).join("")
-          : `<li class="none" role="option" aria-disabled="true">No match</li>`;
-        list.hidden = false;
-        input.setAttribute("aria-expanded", "true");
-        void hydrateSymbols(list);
-      };
-      const hide = () => {
-        list.hidden = true;
-        input.setAttribute("aria-expanded", "false");
-        input.removeAttribute("aria-activedescendant");
-        if (dirty) { input.value = current(); dirty = false; }
-        input.placeholder = kind === "player" ? "Choose a player" : "Choose a faction";
-      };
-      const mark = (i) => {
-        active = i;
-        $$("li", list).forEach((li, k) => li.classList.toggle("active", k === i));
-        if (i >= 0) {
-          input.setAttribute("aria-activedescendant", `${input.id}-o${i}`);
-          $$("li", list)[i]?.scrollIntoView({ block: "nearest" });
-        }
-      };
-
-      input.addEventListener("focus", () => { input.select(); show(); });
-      input.addEventListener("input", () => { dirty = true; show(); });
-      input.addEventListener("blur", () => setTimeout(hide, 120));
-      // Enter picks the highlighted row, or the only/first real match if the person has typed.
-      const enterIndex = () => {
-        if (active >= 0) return active;
-        const firstIsReal = dirty && items[0] && !items[0].hint && !items[0].add;
-        return items.length === 1 || firstIsReal ? 0 : -1;
-      };
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          if (list.hidden) show();
-          mark(Math.min(items.length - 1, active + 1));
-        }
-        else if (e.key === "ArrowUp") { e.preventDefault(); mark(Math.max(0, active - 1)); }
-        else if (e.key === "Enter" && !list.hidden) {
-          e.preventDefault();
-          const o = items[enterIndex()];
-          if (o) { o.pick(); dirty = false; list.hidden = true; }
-        } else if (e.key === "Escape") { hide(); }
-      });
-      // pointerdown + preventDefault keeps focus in the input so blur doesn't
-      // close the list before the tap lands.
-      list.addEventListener("pointerdown", (e) => {
-        const li = e.target.closest("li[data-i]");
-        if (!li) return;
-        e.preventDefault();
-        const o = items[Number(li.dataset.i)];
-        if (o.hint) { o.pick(); return; }
-        o.pick();
-        dirty = false;
-        list.hidden = true;
-        input.setAttribute("aria-expanded", "false");
-        input.blur();
-      });
+      if (box.dataset.kind === "player") {
+        bindCombo(box, {
+          placeholder: "Choose a player",
+          current: () => seat().player_name,
+          options: (c) => playerOptions({
+            ...c, players: this.players, seats: this.st.seats, seat: seat(),
+            onPick: (p) => this.setPlayer(seat(), p.id, p.name, input),
+            onAdd: (name) => this.addGuest(seat(), name, input),
+          }),
+        });
+      } else {
+        bindCombo(box, {
+          placeholder: "Choose a faction",
+          current: () => (seat().faction ? factionName(seat().faction) : ""),
+          options: (c) => factionOptions({
+            ...c, seats: this.st.seats, seat: seat(), plan: this.plan,
+            onPick: (id) => this.setFaction(seat(), id, box, input),
+          }),
+        });
+      }
     }
   }
 
@@ -631,24 +392,13 @@ class Form {
     const bad = this.validate();
     this.showError(bad);
     if (bad) return;
-    const st = this.st;
-    const w = this.plan ? { key: null } : pickWinner(st);
-    const body = {
-      status: this.plan ? "planned" : "finished",
-      played_on: st.played_on,
-      points_to_win: st.points_to_win,
-      pok: st.pok,
-      te: st.te,
-      map_string: st.map_string.trim() || null,
-      ti_assistant_url: st.ti_assistant_url.trim() || null,
-      notes: st.notes,
-      seats: st.seats.map((s) => ({
-        player_id: s.player_id, faction: s.faction || null, color: s.color || null,
-        seat_index: s.seat_index, points: this.plan ? 0 : s.points,
-        is_winner: s.key === w.key, is_speaker_start: s.key === st.speaker,
-      })),
-    };
-    if (!this.editId) body.client_id = st.client_id;
+    const body = toBody(this.st, { plan: this.plan, editId: this.editId });
+    // The same checks the server runs, so a mistake is caught before the request.
+    // The latest date allowed is tomorrow, as on the server.
+    const tomorrow = new Date(Date.now() + 86400000);
+    const { error } = checkGameBody(body, { creating: !this.editId, today: todayLocal(tomorrow) });
+    this.showError(error ?? "");
+    if (error) return;
     const btn = $("#save", this.form);
     this.saving = true;
     btn.disabled = true;

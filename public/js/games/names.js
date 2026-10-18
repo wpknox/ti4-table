@@ -1,6 +1,6 @@
 // Faction ids and display names for the games section. Pure data (no DOM), so
-// stats.js and the Node checks can import it. The ids match server/factions.js
-// and public/img/factions/<id>.svg; the names are the F_* page titles in
+// stats.js, validate.js and the Node checks can import it. The ids are the ones
+// the validator accepts and match public/img/factions/<id>.svg; the names are the F_* page titles in
 // rules.json, with the Firmament / Obsidian page split in two. A static list
 // keeps the form working offline without loading all of rules.json.
 export const FACTION_NAMES = {

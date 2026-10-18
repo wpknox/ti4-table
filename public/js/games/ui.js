@@ -1,6 +1,7 @@
 // Small pieces shared by the games pages.
 import { esc } from "../lib.js";
 import { symbolSlot } from "../factions.js";
+import { isTiAssistantUrl } from "./validate.js";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -12,8 +13,7 @@ export const dayShort = (s) => { const [, m, d] = parts(s); return `${d} ${MONTH
 export const yearOf = (s) => parts(s)[0];
 export const dayLong = (s) => { const [y, m, d] = parts(s); return `${d} ${LONG[m - 1]} ${y}`; };
 
-export const todayLocal = () => {
-  const d = new Date();
+export const todayLocal = (d = new Date()) => {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
@@ -26,18 +26,9 @@ export function expansionsText(g) {
   return list.length ? list.join(", ") : "base game";
 }
 
-// Only https://ti-assistant.com links are ever rendered as links. Same check as
-// isTiAssistantUrl in server/games.js; older rows that fail it show no link.
-const TI_HOSTS = new Set(["ti-assistant.com", "www.ti-assistant.com", "dev.ti-assistant.com"]);
-export function safeTiLink(s) {
-  if (typeof s !== "string" || /\s/.test(s)) return false;
-  try {
-    const u = new URL(s);
-    return u.protocol === "https:" && TI_HOSTS.has(u.hostname) && !u.username && !u.password && !u.port;
-  } catch {
-    return false;
-  }
-}
+// Only https://ti-assistant.com links are ever rendered as links; the check is
+// shared with the server (validate.js). Older rows that fail it show no link.
+export { isTiAssistantUrl as safeTiLink };
 export const mapHref = (m) => `/map?m=${encodeURIComponent(m)}`;
 
 export const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);

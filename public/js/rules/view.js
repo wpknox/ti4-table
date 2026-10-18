@@ -8,16 +8,16 @@
 //                                        the query highlighted, or scrolled
 //                                        to paragraph 58.3
 
-import { $, $$, esc, plural, store, remember, toast } from "../lib.js";
-import { navigate, setUrl, back } from "../router.js";
+import { $, $$, esc, store, remember } from "../lib.js";
+import { navigate, back } from "../router.js";
 import { symbolSlot, hydrateSymbols } from "../factions.js";
-import {
-  loadRules, search, compileQuery, pageMatches, placeAt, suggest, isRuleNumber, textOf,
-} from "./data.js";
+import { loadRules, suggest, isRuleNumber } from "./data.js";
+import { pageUrl, searchUrl } from "./urls.js";
+import { renderResults } from "./results.js";
+import { state, credits, renderPage, setActiveMatch, clearHighlights, shareParagraph } from "./page.js";
+import { sg, hideSuggest, renderSuggest, suggestionUrl } from "./suggest.js";
 
 const MAX_RECENT_SEARCHES = 12;
-const MAX_RECENT_PAGES = 8;
-const SNIPPETS_SHOWN = 3;
 const FONT_STEPS = [0.9375, 1, 1.0625, 1.1875, 1.3125, 1.5, 1.75];
 
 const KIND_TABS = [
@@ -25,22 +25,6 @@ const KIND_TABS = [
   { kind: "Factions", label: "Factions" },
   { kind: "Components", label: "Cards" },
 ];
-
-// ── URLs ──────────────────────────────────────────────────────────────────
-
-function pageUrl(id, { q, mode, m, anchor } = {}) {
-  const p = new URLSearchParams();
-  if (q) p.set("q", q);
-  if (q && mode && mode !== "phrase") p.set("mode", mode);
-  if (q && m) p.set("m", String(m));
-  return `/rules/${id}${p.size ? "?" + p : ""}${anchor ? "#" + encodeURIComponent(anchor) : ""}`;
-}
-
-function searchUrl(q, mode) {
-  const p = new URLSearchParams({ q });
-  if (mode) p.set("mode", mode);
-  return `/rules/search?${p}`;
-}
 
 // ── Shell ─────────────────────────────────────────────────────────────────
 
@@ -90,7 +74,8 @@ function applyFontSize() {
 
 // ── Render entry point ───────────────────────────────────────────────────
 
-let state = { marks: [], active: -1, page: null, rules: null };
+// The loaded rules, kept between renders.
+const loaded = { rules: null };
 
 // Where to scroll on arrival: back where the person was if they pressed back, else the top.
 const restoredTop = (ctx) => (ctx.restoring ? (ctx.scroll ?? 0) : 0);
@@ -117,8 +102,8 @@ export async function renderRules(url, main, ctx) {
 
   let rules;
   try {
-    if (!state.rules) view.innerHTML = `<p class="muted loading">Loading rules…</p>`;
-    rules = state.rules = await loadRules();
+    if (!loaded.rules) view.innerHTML = `<p class="muted loading">Loading rules…</p>`;
+    rules = loaded.rules = await loadRules();
   } catch (err) {
     if (!ctx.stale()) showLoadError(view, err);
     return;
@@ -229,346 +214,13 @@ function browseItems(rules, kind) {
     .join("");
 }
 
-function credits(rules) {
-  return `<footer class="credits">
-    <p><span class="ruling">Highlighted like this</span> is an official ruling from Dane (the rules designer’s team), not part of the Living Rules Reference.</p>
-    <p>Rules text from <a href="${esc(rules.source.repo)}" target="_blank" rel="noopener">tirules-search</a> (${esc(rules.source.commit)}),
-      a fork of <a href="https://github.com/dangothemango/tirules" target="_blank" rel="noopener">dangothemango/tirules</a> by dangothemango and BradleyΣ.
-      <i>Twilight Imperium</i> is © Fantasy Flight Games. This site isn’t affiliated with them.</p>
-  </footer>`;
-}
-
-// ── Results ───────────────────────────────────────────────────────────────
-
-function snippetHtml(text, match, cq) {
-  const RADIUS = 90,
-    MAX = 300;
-  const first = match.ranges[0][0],
-    last = match.ranges.at(-1)[1];
-  let a, b;
-  if (cq.mode === "phrase") {
-    a = Math.max(0, first - RADIUS);
-    b = Math.min(text.length, last + RADIUS);
-  } else {
-    a = Math.max(match.s, first - RADIUS);
-    b = Math.min(match.e, Math.max(last + 40, first + 120), a + MAX);
-  }
-  while (a > 0 && /\S/.test(text[a - 1]) && first - a < RADIUS + 20) a--;
-  while (b < text.length && /\S/.test(text[b]) && b - last < RADIUS + 20) b++;
-  const clean = (t) => esc(t.replace(/\s+/g, " "));
-  const startOfMatch = cq.mode === "phrase" ? 0 : match.s;
-  const endOfMatch = cq.mode === "phrase" ? text.length : match.e;
-  let out = a > startOfMatch ? "…" : "";
-  let pos = a;
-  for (const [s, e] of match.ranges) {
-    if (e <= a || s >= b) continue;
-    out += clean(text.slice(pos, Math.max(s, a))) + "<mark>" + clean(text.slice(Math.max(s, a), Math.min(e, b))) + "</mark>";
-    pos = Math.min(e, b);
-  }
-  out += clean(text.slice(pos, b));
-  if (b < endOfMatch) out += "…";
-  return out.trim();
-}
-
-function placeLabel(page, pos) {
-  const { section, anchor } = placeAt(page, pos);
-  const num = anchor && /^\d/.test(anchor.id) ? anchor.id : "";
-  const sec = section && !/^Rules Reference$/i.test(section) ? section : "";
-  return { num, sec };
-}
-
-// A link to switch between exact-phrase and separate-words search, when that makes sense.
-function otherModeLink(q, cq, mode) {
-  if (cq.mode === "phrase") {
-    if (compileQuery(q, "words")?.terms.length > 1)
-      return `<a class="link" href="${esc(searchUrl(q, "words"))}">Search for the words separately instead</a>`;
-    return "";
-  }
-  // Only offer the way back when the person chose the mode; automatic fallbacks stay quiet.
-  return mode ? `<a class="link" href="${esc(searchUrl(q))}">Back to exact phrase</a>` : "";
-}
-
-function whereHtml({ num, sec }) {
-  if (!num && !sec) return "";
-  const n = num ? `<span class="wn">${esc(num)}</span>` : "";
-  const c = sec ? `<span class="ws">${esc(sec)}</span>` : "";
-  return `<span class="where">${n}${c}</span>`;
-}
-
-function renderResults(view, rules, q, mode) {
-  const { cq, results } = search(rules, q, mode);
-  if (!cq || !results.length) {
-    view.innerHTML = `<div class="empty"><h1>Nothing found for “${esc(q)}”</h1>
-      <p>Try fewer or different words, a rule number like 58, or a card name. Short forms like AFB, PDS and TG work too.</p></div>`;
-    return;
-  }
-
-  const total = results.reduce((n, r) => n + r.matches.length, 0);
-  const unit = cq.mode === "phrase" ? "match" : "paragraph";
-  const units = cq.mode === "phrase" ? "matches" : "paragraphs";
-  let note = "";
-  if (cq.mode === "words")
-    note = `No exact match for the whole phrase, so these are paragraphs that mention ${termList(cq.terms, "and")}.`;
-  else if (cq.mode === "some")
-    note = `No paragraph mentions all of ${termList(cq.terms, "and")}, so these mention most of them.`;
-  const otherMode = otherModeLink(q, cq, mode);
-
-  const snippet = (r, i) => {
-    const m = r.matches[i];
-    const label = placeLabel(r.page, m.ranges[0][0]);
-    const where = whereHtml(label);
-    return `<a class="snippet" href="${esc(pageUrl(r.page.id, { q, mode: cq.mode, m: i }))}">
-        ${where}
-        <span class="snip">${snippetHtml(r.page.text, m, cq)}</span>
-      </a>`;
-  };
-
-  view.innerHTML = `
-    <div class="results">
-      <header class="results-head">
-        <h1>${plural(total, unit, units)} on ${plural(results.length, "page")}</h1>
-        ${note ? `<p class="muted">${note}</p>` : ""}
-        ${otherMode ? `<p>${otherMode}</p>` : ""}
-      </header>
-      <ol class="result-list">
-        ${results
-          .map(
-            (r) => `<li class="result">
-              <a class="result-title" href="${esc(pageUrl(r.page.id, { q, mode: cq.mode, m: 0 }))}">
-                ${r.page.number ? `<span class="n">${r.page.number}</span>` : ""}
-                <span class="t">${esc(r.page.title)}</span>
-              </a>
-              <p class="meta">${resultMeta(r.page, r.matches.length, unit, units)}</p>
-              ${r.matches.slice(0, SNIPPETS_SHOWN).map((_, i) => snippet(r, i)).join("")}
-              ${
-                r.matches.length > SNIPPETS_SHOWN
-                  ? `<div class="more-snippets" hidden>${r.matches
-                      .slice(SNIPPETS_SHOWN)
-                      .map((_, i) => snippet(r, i + SNIPPETS_SHOWN))
-                      .join("")}</div>
-                    <button class="link more" data-act="more">Show ${r.matches.length - SNIPPETS_SHOWN} more on this page</button>`
-                  : ""
-              }
-            </li>`,
-          )
-          .join("")}
-      </ol>
-    </div>`;
-}
-
-const termList = (terms, joiner) =>
-  terms.length < 2
-    ? `“${esc(terms[0] ?? "")}”`
-    : terms.slice(0, -1).map((t) => `“${esc(t)}”`).join(", ") + ` ${joiner} “${esc(terms.at(-1))}”`;
-
-// Prose, not "kind · count": Rules pages are identified by their number, so they get just the count.
-const resultMeta = (page, n, unit, units) => {
-  const isPara = unit === "paragraph";
-  const count = plural(n, isPara ? "matching paragraph" : unit, isPara ? "matching paragraphs" : units);
-  if (page.kind === "Rules") return count;
-  return `${esc(kindLabel(page))}, ${count}`;
-};
-
-function kindLabel(page) {
-  if (page.kind === "Rules") return "Rules Reference";
-  if (page.kind === "Factions") return "Faction notes";
-  return page.subtitle ? `Card notes for ${page.subtitle}` : "Card notes";
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────
-
-// Cross-links in tirules look like "/R_movement", "R_movement" or "C_units".
-function rewriteLinks(body) {
-  for (const a of $$("a[href]", body)) {
-    if (a.classList.contains("pn")) continue;
-    const href = a.getAttribute("href");
-    const link = href.match(/^\/?([RFC]_\w+)\/?(?:\.php)?(#.*)?$/);
-    if (link) a.setAttribute("href", `/rules/${link[1]}${link[2] ?? ""}`);
-    else if (/^https?:/.test(href)) Object.assign(a, { target: "_blank", rel: "noopener" });
-  }
-}
-
-function renderPage(view, rules, page, { q, mode, m, anchor, restoreScroll }) {
-  remember("recentPages", page.id, MAX_RECENT_PAGES);
-  state.page = page;
-
-  // The faction symbol sits outside .rbody: that is the only part the search
-  // index and the highlighter walk, and the slot is empty anyway.
-  const isFaction = page.kind === "Factions";
-  view.innerHTML = `
-    <article class="rpage${isFaction ? " has-fsym" : ""}">
-      ${isFaction ? symbolSlot(page.id, "fsym-page") : ""}
-      <div class="rtools">
-        <span class="spacer"></span>
-        <button class="icon-btn" data-act="smaller" aria-label="Smaller text" title="Smaller text">A−</button>
-        <button class="icon-btn" data-act="larger" aria-label="Larger text" title="Larger text">A+</button>
-      </div>
-      <div class="rbody"></div>
-      ${credits(rules)}
-    </article>`;
-  const body = $(".rbody", view);
-  body.innerHTML = page.html;
-  void hydrateSymbols(view);
-  // Attribute, not text: the big number must stay out of the indexed text.
-  if (page.number) $(":scope > header", body)?.setAttribute("data-num", page.number);
-
-  rewriteLinks(body);
-
-  const cq = q && compileQuery(q, mode ?? "phrase");
-  if (cq) {
-    const matches = pageMatches(page, cq);
-    state.marks = highlight(body, matches.map((x) => x.ranges));
-    state.query = { q, mode: cq.mode };
-  }
-
-  if (state.marks.length) {
-    $(".matchbar").hidden = false;
-    setActiveMatch(Math.min(m, state.marks.length - 1), restoreScroll == null);
-    if (restoreScroll != null) scrollTo(0, restoreScroll);
-  } else if (anchor && document.getElementById(anchor)) {
-    targetParagraph(document.getElementById(anchor), restoreScroll == null);
-    if (restoreScroll != null) scrollTo(0, restoreScroll);
-  } else {
-    scrollTo(0, restoreScroll ?? 0);
-  }
-}
-
-// Wraps each range in <mark>, splitting across element boundaries when a
-// match spans e.g. "the <b>Move Ships</b> step". `groups` is one array of
-// [start, end] ranges per match; returns the marks grouped the same way.
-function highlight(root, groups) {
-  const { nodes, starts } = textOf(root);
-  const segs = groups
-    .flatMap((ranges, g) => ranges.map(([s, e]) => [s, e, g]))
-    .sort((a, b) => a[0] - b[0]);
-  const marks = groups.map(() => []);
-  let k = 0;
-  nodes.forEach((node, i) => {
-    const ns = starts[i],
-      ne = ns + node.nodeValue.length;
-    while (k < segs.length && segs[k][1] <= ns) k++;
-    const here = [];
-    for (let j = k; j < segs.length && segs[j][0] < ne; j++)
-      here.push([Math.max(segs[j][0], ns) - ns, Math.min(segs[j][1], ne) - ns, segs[j][2]]);
-    if (!here.length) return;
-    const v = node.nodeValue,
-      frag = document.createDocumentFragment();
-    let last = 0;
-    for (const [s, e, g] of here) {
-      if (s < last) continue; // overlapping ranges: keep the first
-      if (s > last) frag.append(v.slice(last, s));
-      const mark = document.createElement("mark");
-      mark.textContent = v.slice(s, e);
-      marks[g].push(mark);
-      frag.append(mark);
-      last = e;
-    }
-    if (last < v.length) frag.append(v.slice(last));
-    node.replaceWith(frag);
-  });
-  return marks;
-}
-
-function setActiveMatch(i, scroll = true) {
-  const { marks } = state;
-  if (!marks.length) return;
-  i = (i + marks.length) % marks.length;
-  for (const el of marks[state.active] ?? []) el.classList.remove("current");
-  $$(".hit-block").forEach((el) => el.classList.remove("hit-block"));
-  state.active = i;
-  for (const el of marks[i]) el.classList.add("current");
-  if (state.query?.mode !== "phrase") marks[i][0]?.closest("li, p")?.classList.add("hit-block");
-
-  $(".matchcount").innerHTML = `<b>${i + 1}</b> of ${marks.length} for “${esc(state.query?.q ?? "")}”`;
-  const url = new URL(location.href);
-  url.searchParams.set("m", String(i));
-  url.hash = "";
-  setUrl(url.href);
-  if (scroll) marks[i][0]?.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-}
-
-function clearHighlights() {
-  if (!state.page) return;
-  const y = scrollY;
-  navigate(pageUrl(state.page.id), { replace: true });
-  requestAnimationFrame(() => scrollTo(0, y));
-}
-
-function targetParagraph(li, scroll) {
-  $$(".rbody .target").forEach((el) => el.classList.remove("target"));
-  li.classList.add("target");
-  if (scroll) li.scrollIntoView({ block: "center" });
-}
-
-function paragraphLabel(li, id) {
-  if (/^\d/.test(id)) return `Rule ${id}`;
-  let el = li.closest("ol.note") ?? li;
-  while (el && el.nodeName !== "H2") el = el.previousElementSibling;
-  const section = el ? textOf(el).text.trim() : "Notes";
-  const num = li.querySelector(":scope > .pn")?.textContent ?? "";
-  return `${section}, note ${num}`;
-}
-
-function shareParagraph(a) {
-  const li = a.parentElement;
-  const id = a.dataset.anchor;
-  const url = new URL(pageUrl(state.page.id, { anchor: id }), location.origin).href;
-  setUrl(url);
-  targetParagraph(li, false);
-  const label = paragraphLabel(li, id);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast("Link copied");
-    } catch {
-      toast("Couldn't copy. Long-press the address bar instead.");
-    }
-  };
-  const actions = [["Copy link", copy]];
-  if (navigator.share) actions.push(["Share", () => navigator.share({ title: label, url }).catch(() => {})]);
-  toast(label, actions);
-}
-
-// ── Suggestions ───────────────────────────────────────────────────────────
-
-let suggestions = [],
-  suggestIndex = -1;
-
-function hideSuggest(shell = document) {
-  const box = $(".suggest", shell);
-  if (box) box.hidden = true;
-  $("#rq", shell)?.setAttribute("aria-expanded", "false");
-  suggestions = [];
-  suggestIndex = -1;
-}
-
-function suggestionUrl(s) {
-  return pageUrl(s.page.id, { anchor: s.id });
-}
-
-function renderSuggest() {
-  const box = $(".suggest");
-  if (!suggestions.length) return hideSuggest();
-  box.hidden = false;
-  $("#rq").setAttribute("aria-expanded", "true");
-  box.innerHTML =
-    suggestions
-      .map(
-        (s, i) => `<a class="suggestion${i === suggestIndex ? " active" : ""}" role="option" id="sg${i}"
-          aria-selected="${i === suggestIndex}" href="${esc(suggestionUrl(s))}">
-          <span class="t">${s.label ? `${esc(s.label)} <span class="muted">in ${esc(s.page.title)}</span>` : esc(s.page.title)}</span>
-          <span class="muted k">${esc(kindLabel(s.page))}</span></a>`,
-      )
-      .join("") + `<p class="suggest-hint">Enter searches the full text</p>`;
-}
-
 // ── Events ────────────────────────────────────────────────────────────────
 
 function runSearch(q) {
   q = q.trim();
   if (!q) return;
   remember("recentSearches", q, MAX_RECENT_SEARCHES, (a, b) => a.toLowerCase() === b.toLowerCase());
-  const rules = state.rules;
+  const rules = loaded.rules;
   // A bare rule number goes straight to that paragraph.
   if (rules && isRuleNumber(q)) {
     const [hit] = suggest(rules, q);
@@ -583,9 +235,9 @@ function wire(shell) {
   const form = $(".rsearch", shell);
 
   input.addEventListener("input", async () => {
-    const rules = state.rules ?? (await loadRules());
-    suggestions = suggest(rules, input.value);
-    suggestIndex = -1;
+    const rules = loaded.rules ?? (await loadRules());
+    sg.items = suggest(rules, input.value);
+    sg.index = -1;
     renderSuggest();
   });
 
@@ -598,9 +250,9 @@ function wire(shell) {
     if ($(".suggest").hidden) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      const n = suggestions.length + 1; // +1 for "no selection" (full-text search)
-      suggestIndex = ((suggestIndex + 1 + (e.key === "ArrowDown" ? 1 : -1) + n) % n) - 1;
-      input.setAttribute("aria-activedescendant", suggestIndex >= 0 ? `sg${suggestIndex}` : "");
+      const n = sg.items.length + 1; // +1 for "no selection" (full-text search)
+      sg.index = ((sg.index + 1 + (e.key === "ArrowDown" ? 1 : -1) + n) % n) - 1;
+      input.setAttribute("aria-activedescendant", sg.index >= 0 ? `sg${sg.index}` : "");
       renderSuggest();
     }
   });
@@ -611,7 +263,7 @@ function wire(shell) {
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const pick = suggestions[suggestIndex];
+    const pick = sg.items[sg.index];
     hideSuggest();
     if (pick) {
       navigate(suggestionUrl(pick));
@@ -638,7 +290,7 @@ function wire(shell) {
       for (const b of $$("[data-tab]", shell)) b.setAttribute("aria-selected", String(b === t));
       const list = $(".index", shell);
       list.dataset.kind = t.dataset.tab;
-      list.innerHTML = browseItems(state.rules, t.dataset.tab);
+      list.innerHTML = browseItems(loaded.rules, t.dataset.tab);
       void hydrateSymbols(list);
       return;
     }
