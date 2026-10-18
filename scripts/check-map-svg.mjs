@@ -75,6 +75,22 @@ for (const m of all) {
   for (const t of parsed.tiles.filter((t) => !art.has(t.id))) check(!svg.includes(`/img/tiles/${t.id}.webp`), `${m.name} (art): ${t.id} has no art but got an image`);
 }
 
+// Thunder's Edge outline: one marker on the chosen cell, and no change without the option.
+for (const view of ["analysis", "art"]) {
+  const parsed = parseMapString(SYM, { data: tiles });
+  const report = analyze(parsed, tiles);
+  const opts = { title: "Test map", view, art };
+  const plain = renderMapSvg(parsed, report, tiles, opts);
+  check(plain === renderMapSvg(parsed, report, tiles, { ...opts, teSpots: [] }), `${view}: teSpots [] changes nothing`);
+  check(!plain.includes("te-spot"), `${view}: no marker without teSpots`);
+  const svg = renderMapSvg(parsed, report, tiles, { ...opts, teSpots: [7] });
+  check((svg.match(/class="te-spot"/g) ?? []).length === 1, `${view}: exactly one te-spot`);
+  check(balanced(svg), `${view}: te-spot tags balance`);
+  const cell = svg.match(/<g [^>]*data-pos="7"[^>]*>/)?.[0] ?? "";
+  check(/data-label="[^"]*, fair spot for Thunder's Edge"/.test(cell.replace("&#39;", "'")) || cell.includes(`, fair spot for Thunder's Edge"`), `${view}: label says fair spot`);
+  check(cell.includes(`aria-label="`) && /fair spot for Thunder's Edge" transform/.test(cell), `${view}: aria-label ends with the phrase`);
+}
+
 // User text must be escaped.
 const evil = renderMapSvg(parseMapString("1 2 3", { data: tiles }), analyze(parseMapString("1 2 3", { data: tiles }), tiles), tiles, { title: '<img onerror=x> "' });
 check(!evil.includes("<img"), "title is escaped");

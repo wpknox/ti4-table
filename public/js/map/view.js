@@ -7,7 +7,7 @@
 import { $, $$, esc, plural, remember, store } from "../lib.js";
 import { navigate, setUrl } from "../router.js";
 import { parseMapString } from "./parse.js";
-import { analyze, describe } from "./analyze.js";
+import { analyze, describe, TE_NEAR } from "./analyze.js";
 import { renderMapSvg } from "./svg.js";
 import { factionId, symbolSlot, hydrateSymbols } from "../factions.js";
 import { loadTiles, loadArt, tileSymbols } from "./load.js";
@@ -111,8 +111,9 @@ export async function renderMap(url, main, ctx) {
         <button type="button" data-view="analysis" aria-pressed="${view !== "art"}">Analysis</button>
         <button type="button" data-view="art" aria-pressed="${view === "art"}">Tile art</button>
       </div>
-      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { view, art, symbols, title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
+      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { view, art, symbols, teSpots: report.thundersEdge.spots.map((s) => s.pos), title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
       <p class="tile-note" id="tile-note" aria-live="polite"></p>
+      <p class="te-note">${esc(teNote(report.thundersEdge.spots))}</p>
     </div>
     <div class="map-right">
       ${notesHtml(notes)}
@@ -199,6 +200,15 @@ export async function renderMap(url, main, ctx) {
   });
 
   scrollTo(0, ctx.restoring ? (ctx.scroll ?? 0) : 0);
+}
+
+// One line under the map about where Thunder's Edge would sit fairest.
+function teNote(spots) {
+  if (!spots.length) return "Thunder's Edge: no empty system is the same distance from every home.";
+  const lo = Math.min(...spots.map((s) => s.min));
+  const hi = Math.max(...spots.map((s) => s.max));
+  const range = lo === hi ? `${hi}` : `${lo} to ${hi}`;
+  return `Thunder's Edge: the fairest places for it are outlined on the map, ${range} moves from every home.`;
 }
 
 function showRecent(out) {
@@ -293,6 +303,8 @@ function metricsTable(d, report, abilities) {
     ${row("Planets one move away", String(m.adjacentPlanets))}
     ${row("Wormholes", m.wormholes.length ? esc(m.wormholes.join(", ")) : "None")}
     ${row("Legendary planets", m.legendary.length ? m.legendary.map((n) => tipHtml(n, abilities.get(n))).join(", ") : "None")}
+    ${row("Nearest Thunder's Edge spot", m.thundersEdge.nearest === null ? "None reachable" : plural(m.thundersEdge.nearest, "move"))}
+    ${row(`Thunder's Edge spots within ${TE_NEAR} moves`, String(m.thundersEdge.near))}
     ${row("Anomalies", anoms.length ? esc(anoms.map(([k, v]) => `${k.replace("-", " ")} ${fmt(v)}`).join(", ")) : "None")}
     ${contested.length ? row("Systems shared with", esc(contested.map(([k, v]) => `seat ${k} (${fmt(v)})`).join(", "))) : ""}
   </tbody></table>`;

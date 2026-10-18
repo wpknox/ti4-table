@@ -21,6 +21,8 @@ export const MAX_ANOMALIES = 2;
 export const MIN_ADJACENT = 2;
 // Systems within this many moves count as "near" for tech skips.
 export const NEAR = 2;
+// Thunder's Edge spots within this many moves of a home count as "near".
+export const TE_NEAR = 2;
 
 // Anomalies that stop a fleet from moving on (the system still gets a distance).
 const BLOCKING = new Set(["supernova", "asteroid-field", "nebula"]);
@@ -114,6 +116,34 @@ function distancesFrom(start, graph, tileAt) {
   return dist;
 }
 
+// ── Thunder's Edge ────────────────────────────────────────────────────────
+
+// Where Thunder's Edge may be placed (rules page R_expedition): a system with
+// no planet, no supernova, no printed wormhole, outside the Fracture. A space
+// station isn't a planet, so it doesn't block placement (owner, 2026-10-18).
+function teEligible(t, graph, homeSet) {
+  if (t.id === "0" || homeSet.has(t.pos)) return false;
+  const info = graph.info(t);
+  if (info.type === "home" || info.type === "mecatol") return false;
+  return info.planets.every((p) => p.spaceStation) && !arr(info.anomaly).includes("supernova") && arr(info.wormholes).length === 0 && !info.fracture;
+}
+
+// Eligible systems every seat can reach, as { pos, min, max } (moves from the
+// closest and farthest home). The fairest are the least spread, then the
+// nearest, at most three. Quiet extra: it never touches the verdict.
+function teSpots(eligible, dists) {
+  const reach = eligible
+    .filter((p) => dists.every((d) => d.has(p)))
+    .map((pos) => {
+      const ds = dists.map((d) => d.get(pos));
+      return { pos, min: Math.min(...ds), max: Math.max(...ds) };
+    });
+  reach.sort((a, b) => a.max - a.min - (b.max - b.min) || a.max - b.max || a.pos - b.pos);
+  const [top] = reach;
+  if (!top) return [];
+  return reach.filter((s) => s.max - s.min === top.max - top.min && s.max === top.max).slice(0, 3);
+}
+
 // ── Analysis ──────────────────────────────────────────────────────────────
 
 /**
@@ -135,8 +165,12 @@ export function analyze(parsed, tiles) {
       warnings.push(`Seat ${s.seat} can't reach Mecatol Rex.`);
   });
 
+  const homeSet = new Set(parsed.homes);
+  const eligible = graph.systems.filter((t) => teEligible(t, graph, homeSet)).map((t) => t.pos).sort((a, b) => a - b);
+  if (!eligible.length) warnings.push("No system on this map can take Thunder's Edge.");
+
   seats.forEach((s, i) => {
-    s.metrics = seatMetrics(s, dists[i], graph, tileAt, mecatolPos);
+    s.metrics = seatMetrics(s, dists[i], graph, tileAt, mecatolPos, eligible);
   });
 
   // Table figures.
@@ -160,7 +194,9 @@ export function analyze(parsed, tiles) {
   else if (flagged.length === 1)
     code = findings.some((f) => f.seat === flagged[0] && f.code === "optimal-high") ? "one-strong" : "one-weak";
 
-  return { seats, table, findings, verdict: { code, seats: flagged }, warnings };
+  const thundersEdge = { eligible, spots: teSpots(eligible, dists) };
+
+  return { seats, table, findings, verdict: { code, seats: flagged }, warnings, thundersEdge };
 }
 
 // Slices: each system goes to its nearest seat(s).
@@ -224,7 +260,7 @@ function addPlanet(m, info, p, w) {
   if (p.legendary) m.legendary.push(p.name);
 }
 
-function seatMetrics(s, dist, graph, tileAt, mecatolPos) {
+function seatMetrics(s, dist, graph, tileAt, mecatolPos, eligible) {
   // A system shared by k seats counts 1/k for each.
   const slice = [
     ...s.own.map((pos) => ({ pos, w: 1 })),
@@ -243,19 +279,21 @@ function seatMetrics(s, dist, graph, tileAt, mecatolPos) {
     for (const a of arr(info.anomaly)) m.anomalies[a] = (m.anomalies[a] ?? 0) + w;
   }
   for (const x of s.shared) for (const o of x.with) m.contested[o] = (m.contested[o] ?? 0) + x.weight;
-  addDistanceMetrics(m, dist, graph, tileAt, mecatolPos);
+  addDistanceMetrics(m, dist, graph, tileAt, mecatolPos, eligible);
   roundMetrics(m);
   return m;
 }
 
 // Distance-based, unweighted and regardless of whose slice it is.
-function addDistanceMetrics(m, dist, graph, tileAt, mecatolPos) {
+function addDistanceMetrics(m, dist, graph, tileAt, mecatolPos, eligible) {
   for (const [pos, d] of dist) {
     const info = graph.info(tileAt.get(pos));
     if (d <= NEAR) m.skipsNear += info.planets.filter((p) => arr(p.tech).length).length;
     if (d === 1) m.adjacentPlanets += info.spaceStation ? 0 : info.planets.length;
   }
   m.mecatol = mecatolPos != null && dist.has(mecatolPos) ? dist.get(mecatolPos) : null;
+  const te = eligible.filter((p) => dist.has(p)).map((p) => dist.get(p));
+  m.thundersEdge = { nearest: te.length ? Math.min(...te) : null, near: te.filter((d) => d <= TE_NEAR).length };
 }
 
 // Sums are accumulated in floats; round them once at the end.
@@ -307,6 +345,8 @@ function findSeatFindings(seats, table, graph, tileAt) {
   const hasLegendary = (pos) => graph.info(tileAt.get(pos)).planets.some((p) => p.legendary);
   const findings = [];
   const add = (seat, severity, code, data = {}) => findings.push({ seat, severity, code, data });
+  const teNearest = seats.map((s) => s.metrics.thundersEdge.nearest).filter((v) => v !== null);
+  const teBest = teNearest.length ? Math.min(...teNearest) : null;
   for (const s of seats) {
     const m = s.metrics;
     optimalFindings(add, s, table);
@@ -323,6 +363,9 @@ function findSeatFindings(seats, table, graph, tileAt) {
       add(s.seat, "good", "legendary", { names: m.legendary, sharedWith });
     }
     if (m.adjacentPlanets < MIN_ADJACENT) add(s.seat, "warn", "few-adjacent", { value: m.adjacentPlanets });
+    // A note, never a warn: Thunder's Edge may not come into play.
+    const te = m.thundersEdge.nearest;
+    if (teBest !== null && (te === null || te - teBest >= 2)) add(s.seat, "note", "te-far", { value: te, best: teBest });
   }
   return findings;
 }
@@ -384,6 +427,12 @@ function sentence(f, seat, report) {
     }
     case "few-adjacent":
       return { text: `Only ${d.value} ${plural(d.value, "planet", "planets")} one move away, so little to claim or defend early.` };
+    case "te-far":
+      if (d.value === null) return { text: "No system Thunder's Edge can be placed in is reachable from here.", rule: "R_expedition" };
+      return {
+        text: `The nearest system Thunder's Edge could land in is ${d.value} ${plural(d.value, "move", "moves")} away, against ${d.best} for the closest seat.`,
+        rule: "R_expedition",
+      };
     default:
       return { text: f.code };
   }

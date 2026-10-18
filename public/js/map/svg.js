@@ -103,9 +103,11 @@ export function tileLabel(tile, info, seats, homeSeat) {
  * @param {Set<string>} [opts.art]  tile ids that have an image (the manifest's keys); others keep the analysis look
  * @param {object} [opts.seatLabels]  seat number -> { name?, faction? }: a player name under the numeral, and that
  *   faction's symbol (a key of `symbols`) instead of the home tile's own. Without it the output is unchanged.
+ * @param {number[]} [opts.teSpots]  positions to outline as fair spots for Thunder's Edge (and say so in their label).
+ *   Without it the output is unchanged.
  * @returns {string} an <svg> element
  */
-export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set(), seatLabels = null } = {}) {
+export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set(), seatLabels = null, teSpots = [] } = {}) {
   const isArt = view === "art";
   const seatAt = new Map(parsed.homes.map((pos, i) => [pos, i + 1]));
   const { slice, sharedPos } = sliceMaps(report);
@@ -124,7 +126,7 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
     `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>${defs}</defs>`,
   ];
 
-  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels };
+  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels, te: new Set(teSpots) };
   for (const c of cells) out.push(...cellMarkup(c, ctx));
   out.push(`</svg>`);
   return out.join("");
@@ -133,12 +135,13 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
 // ── Pieces of a tile ───────────────────────────────────────────────────────
 
 // Everything for one hex: the group, its face, its marks and its edge.
-function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels }) {
+function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels, te }) {
   const { t } = c;
   const info = tiles[t.id];
   const homeSeat = seatAt.get(t.pos);
   const seats = homeSeat ? [homeSeat] : slice.get(t.pos) ?? [];
-  const label = tileLabel(t, info, seats, homeSeat);
+  const isTe = te.has(t.pos);
+  const label = tileLabel(t, info, seats, homeSeat) + (isTe ? ", fair spot for Thunder's Edge" : "");
   const cls = tileClasses(t, info, homeSeat);
   const hasArt = isArt && art.has(t.id);
   if (hasArt) cls.push("pic");
@@ -153,13 +156,19 @@ function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, s
   ].filter(Boolean);
   const out = [`<g ${attrs.join(" ")}>`, `<polygon class="face" points="${hexPoints(R * GAP)}"/>`];
   const shared = !homeSeat && sharedPos.has(t.pos);
-  if (hasArt) return [...out, ...artTile(t, homeSeat, shared)];
+  const teMark = isTe ? `<polygon class="te-spot" points="${hexPoints(R * GAP * 0.72)}"/>` : "";
+  if (hasArt) {
+    const pieces = artTile(t, homeSeat, shared);
+    if (teMark) pieces.splice(pieces.length - 2, 0, teMark); // before the edge and the closing </g>
+    return [...out, ...pieces];
+  }
   if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
   if (shared) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
 
   if (info?.type === "hyperlane" && info.hyperlanes) out.push(...laneLines(info, t));
   else if (homeSeat) out.push(...homeMarks(info, homeSeat, symbols, seatLabels?.[homeSeat]));
   else if (t.id !== "0") out.push(...systemMarks(info));
+  if (teMark) out.push(teMark);
   out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
   return out;
 }

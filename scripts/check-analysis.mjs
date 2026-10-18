@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { parseMapString } from "../public/js/map/parse.js";
 import { analyze, describe } from "../public/js/map/analyze.js";
-import { MAPS, SYM, LOP, SUPERNOVA, NEBULA, ASTEROID, RIFT, WORMHOLE } from "./fixtures/maps.mjs";
+import { MAPS, SYM, swap, LOP, SUPERNOVA, NEBULA, ASTEROID, RIFT, WORMHOLE } from "./fixtures/maps.mjs";
 
 const { tiles } = JSON.parse(readFileSync(new URL("../public/data/tiles.json", import.meta.url), "utf8"));
 const rules = JSON.parse(readFileSync(new URL("../public/data/rules.json", import.meta.url), "utf8"));
@@ -124,6 +124,93 @@ console.log("WORMHOLE");
   check(s4.distance["20"] === 2, `seat 4 to 20: ${s4.distance["20"]}`);
   check(s1.own.includes(20), "20 is seat 1's own");
   check(s4.own.includes(29), "29 is seat 4's own");
+}
+
+// ── Thunder's Edge ────────────────────────────────────────────────────────
+
+console.log("THUNDER'S EDGE");
+{
+  // Same rules as the plan (rules page R_expedition), written out afresh.
+  const eligibleOk = (parsed, report, name) => {
+    for (const pos of report.thundersEdge.eligible) {
+      const t = parsed.tiles.find((x) => x.pos === pos);
+      const i = tiles[t.id];
+      const ok = t.id !== "0" && !parsed.homes.includes(pos) && i && i.type !== "home" && i.type !== "mecatol" && i.type !== "hyperlane" &&
+        i.planets.every((p) => p.spaceStation) && ![].concat(i.anomaly ?? []).includes("supernova") && ![].concat(i.wormholes ?? []).length && !i.fracture;
+      check(ok, `${name}: position ${pos} (tile ${t.id}) is not eligible`);
+    }
+  };
+  for (const m of [...MAPS, { name: "SYM", str: SYM }]) {
+    const { parsed, report } = run(m.str, m.players);
+    eligibleOk(parsed, report, m.name);
+    check(report.thundersEdge.spots.length <= 3, `${m.name}: at most 3 spots`);
+  }
+
+  for (const [name, str, off] of [["SUPERNOVA", SUPERNOVA, [7]], ["WORMHOLE", WORMHOLE, [20, 29]]]) {
+    const { report } = run(str);
+    for (const p of off) check(!report.thundersEdge.eligible.includes(p), `${name}: ${p} must not be eligible`);
+  }
+  // Tile 117 holds only a space station (The Watchtower), which doesn't block placement.
+  check(run(swap(SYM, { 7: 117 })).report.thundersEdge.eligible.includes(7), "STATION: 7 (tile 117, station only) is eligible");
+
+  // SYM has a planet in every system, so nothing is eligible. This variant
+  // empties ring 1 (positions 1-6, two moves from the nearest home, tiles 46-50
+  // and 77 are plain red with no planet) and stays 60-degree symmetric.
+  const SYM_TE = swap(SYM, { 1: 46, 2: 47, 3: 48, 4: 49, 5: 50, 6: 77 });
+  const none = run(SYM);
+  eq(none.report.thundersEdge, { eligible: [], spots: [] }, "SYM: nothing eligible");
+  check(none.report.warnings.includes("No system on this map can take Thunder's Edge."), "SYM: warns that nothing can take it");
+  eq(none.report.findings.filter((f) => f.code === "te-far"), [], "SYM: no te-far");
+
+  {
+    const { parsed, report } = run(SYM_TE);
+    eligibleOk(parsed, report, "SYM_TE");
+    eq(report.thundersEdge.eligible, [1, 2, 3, 4, 5, 6], "SYM_TE eligible");
+    // Independent minimum spread, from each seat's distance table.
+    const spreadOf = (p) => {
+      const ds = report.seats.map((s) => s.distance[p]);
+      return Math.max(...ds) - Math.min(...ds);
+    };
+    const reach = report.thundersEdge.eligible.filter((p) => report.seats.every((s) => s.distance[p] !== undefined));
+    const minSpread = Math.min(...reach.map(spreadOf));
+    check(report.thundersEdge.spots.length > 0, "SYM_TE has spots");
+    for (const sp of report.thundersEdge.spots) {
+      check(sp.max - sp.min === minSpread, `spot ${sp.pos}: spread ${sp.max - sp.min}, want ${minSpread}`);
+      check(sp.min === Math.min(...report.seats.map((s) => s.distance[sp.pos])), `spot ${sp.pos}: min`);
+    }
+    const nearest = report.seats.map((s) => s.metrics.thundersEdge.nearest);
+    check(nearest.every((v) => v === 2), `SYM_TE nearest ${nearest}`);
+    eq(report.findings.filter((f) => f.code === "te-far"), [], "SYM_TE: no te-far");
+  }
+
+  // Seat 1 (home 19) has planets all around: 18, 20 and 36 are adjacent, so
+  // its nearest empty system is 4 moves away (23 and 33, counted from the
+  // distance table: 19-20-21-22-23 is four steps and no shortcut exists).
+  // Seats 2-6 each get an empty system next to home: 23 beside home 22, 26
+  // beside 25, 29 beside 28, 32 beside 31 and 33 beside 34. They sit at 1.
+  {
+    const { report } = run(swap(SYM, { 23: 46, 26: 47, 29: 48, 32: 49, 33: 50 }));
+    eq(report.seats.map((s) => s.metrics.thundersEdge.nearest), [4, 1, 1, 1, 1, 1], "te nearest per seat");
+    const f = finding(report, 1, "te-far");
+    check(f && f.severity === "note" && f.data.value === 4 && f.data.best === 1, `seat 1 te-far: ${JSON.stringify(f)}`);
+    eq(report.findings.filter((x) => x.code === "te-far").length, 1, "only seat 1 gets te-far");
+    // The verdict comes from warnings alone, so it matches one built without te-far.
+    const flagged = [...new Set(report.findings.filter((x) => x.severity === "warn").map((x) => x.seat))];
+    eq(report.verdict.seats, flagged, "verdict seats are exactly the warned seats");
+    check(report.findings.every((x) => x.code !== "te-far" || x.severity === "note"), "te-far is never a warn");
+  }
+
+  // Wording.
+  const base = { seat: 1, severity: "note", code: "te-far" };
+  const text = (data) => {
+    const rep = { verdict: { code: "fair", seats: [] }, findings: [{ ...base, data }], seats: [{ seat: 1, faction: null }], table: { mean: {} } };
+    return describe(rep).seats[0].lines[0];
+  };
+  const a = text({ value: 4, best: 1 });
+  eq(a.text, "The nearest system Thunder's Edge could land in is 4 moves away, against 1 for the closest seat.", "te-far text");
+  eq(text({ value: 1, best: 0 }).text.includes("is 1 move away"), true, "te-far singular");
+  eq(text({ value: null, best: 1 }).text, "No system Thunder's Edge can be placed in is reachable from here.", "te-far null text");
+  check(a.rule === "R_expedition" && RULE_IDS.has(a.rule), `rule ${a.rule} exists`);
 }
 
 // ── Real maps ─────────────────────────────────────────────────────────────

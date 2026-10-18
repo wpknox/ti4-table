@@ -69,12 +69,15 @@
 .mapsvg .glyph { fill: none; stroke: var(--dust); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .mapsvg .glyph circle:not([r="2"]):not([r="4.4"]):not([r="6.8"]) { fill: var(--dust); stroke: none; }
 .mapsvg .legend { fill: none; stroke: var(--resource); stroke-width: 0.9; }
+.mapsvg .te-spot { fill: none; stroke: var(--resource); stroke-width: 0.9; stroke-dasharray: 2.2 2; pointer-events: none; }
+.mapsvg.art .te-spot { stroke: #f4c542; stroke-width: 1.4; } /* art is dark in both themes */
 .mapsvg .skip { stroke: none; }
 .skip-green { fill: var(--tech-biotic); background: var(--tech-biotic); }
 .skip-blue { fill: var(--tech-propulsion); background: var(--tech-propulsion); }
 .skip-yellow { fill: var(--tech-cybernetic); background: var(--tech-cybernetic); }
 .skip-red { fill: var(--tech-warfare); background: var(--tech-warfare); }
 
+.te-note { margin: 4px 0 0; color: var(--dust); font-size: var(--t-s); }
 .tile-note { min-height: 3em; margin: 8px 0 0; color: var(--dust); font-size: var(--t-s); }
 
 /* Report */
