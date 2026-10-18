@@ -2,8 +2,7 @@
 //   npm run check:api
 // Uses a private local D1 in .wrangler/check-state, starts `wrangler pages dev`
 // on port 8790, runs every check, and always stops the server. Node built-ins only.
-import { spawn, spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { startServer, resetState, makeInvite as invite, wrangler } from "./lib/dev-server.mjs";
 
 const PORT = 8790;
 const BASE = `http://localhost:${PORT}`;
@@ -33,14 +32,9 @@ async function api(method, path, { cookie, body, origin = BASE, type = "applicat
   return { status: res.status, data, setCookie: res.headers.getSetCookie?.() ?? [] };
 }
 
-const wrangler = (...args) => spawnSync("npx", ["wrangler", ...args], { encoding: "utf8" });
 const cookieOf = (res) => (res.setCookie[0] || "").split(";")[0];
 
-function makeInvite(name, role) {
-  const res = spawnSync("node", ["scripts/invite.mjs", "--local", "--persist-to", STATE, name, role], { encoding: "utf8" });
-  if (res.status !== 0) throw new Error(`invite.mjs failed for ${name}: ${res.stderr}`);
-  return res.stdout.trim();
-}
+const makeInvite = (name, role) => invite(STATE, name, role);
 
 async function signIn(name, role) {
   const res = await api("POST", "/api/auth/redeem", { body: { code: makeInvite(name, role) } });
@@ -64,38 +58,12 @@ function gameBody(playerIds, over = {}) {
   };
 }
 
-// ── Server ───
 let server;
-function stopServer() {
-  if (!server || server.killed) return;
-  try { process.kill(-server.pid, "SIGTERM"); } catch { /* already gone */ }
-}
-process.on("exit", stopServer);
-for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { stopServer(); process.exit(130); });
-
-async function startServer() {
-  server = spawn("npx", ["wrangler", "pages", "dev", "--port", String(PORT), "--persist-to", STATE],
-    { detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  let log = "";
-  server.stdout.on("data", (d) => (log += d));
-  server.stderr.on("data", (d) => (log += d));
-  const deadline = Date.now() + 60000;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${BASE}/api/me`);
-      if (res.ok) return;
-    } catch { /* not up yet */ }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`wrangler pages dev did not answer GET /api/me within 60 s.\n${log.slice(-1500)}`);
-}
 
 // ── Run ───
 async function run() {
-  rmSync(STATE, { recursive: true, force: true });
-  const mig = wrangler("d1", "migrations", "apply", "ti4-table", "--local", "--persist-to", STATE);
-  if (mig.status !== 0) throw new Error(`migrations failed:\n${mig.stdout}${mig.stderr}`);
-  await startServer();
+  resetState(STATE);
+  server = await startServer({ port: PORT, state: STATE });
 
   const admin = await signIn("Admin A", "admin");
   const e1 = await signIn("Ed One", "editor");
@@ -445,7 +413,7 @@ try {
   failures++;
   console.log(`FAIL  ${err.message}`);
 } finally {
-  stopServer();
+  server?.stop();
 }
 console.log(failures ? `${failures} check(s) failed` : "All checks passed");
 process.exit(failures ? 1 : 0);

@@ -43,7 +43,12 @@ node scripts/serve.mjs                          # http://localhost:8787 (service
 node scripts/build-rules.mjs ../ti4-rules/tirules   # or TIRULES_DIR=…; default ../tirules-search
 ```
 
-There are no automated tests yet. Verify with Playwright against the dev server, at phone (390×844) and desktop (1280×800) sizes, in both dark and light colour schemes. The Playwright MCP may only write screenshots under the repo it was started from. Use `.playwright-mcp/` there, which is gitignored.
+```bash
+npm run check:api   # games API, 91 checks, private local D1, port 8790
+PLAYWRIGHT_CORE=<dir>/node_modules/playwright-core/index.mjs npm run check:ui   # Chrome smoke test of every section, port 8791
+```
+
+`check:ui` needs `playwright-core` installed outside the repo (`npm i --prefix ~/.cache/ti4-table-pw playwright-core`), never in `package.json`. It fails on console errors, CSP violations, horizontal scroll and broken core flows. It doesn't judge looks. Run both before committing UI work. For looks, verify with Playwright against the dev server, at phone (390×844) and desktop (1280×800) sizes, in both dark and light colour schemes. The Playwright MCP may only write screenshots under the repo it was started from. Use `.playwright-mcp/` there, which is gitignored.
 
 ## Invariants (rules section)
 
