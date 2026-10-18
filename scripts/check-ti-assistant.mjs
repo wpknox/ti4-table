@@ -7,7 +7,8 @@ import { LIVE_GAME, ARCHIVED_EXPORT, ARCHIVE_PAGE, ARCHIVED_ID, ARCHIVED_START }
 let failures = 0;
 function check(name, ok, detail = "") {
   if (!ok) failures++;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok || !detail ? "" : `  -> ${detail}`}`);
+  const why = ok || !detail ? "" : `  -> ${detail}`;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${why}`);
 }
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

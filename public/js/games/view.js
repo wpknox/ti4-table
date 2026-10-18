@@ -26,7 +26,8 @@ const GAME_ROUTES = [
 
 export async function renderGames(url, main, ctx) {
   document.title = "Games · TI4 Table";
-  const path = url.pathname.replace(/\/+$/, "");
+  let path = url.pathname;
+  while (path.endsWith("/")) path = path.slice(0, -1);
   const rest = path.slice("/games".length);
   let me = null;
   try {

@@ -15,8 +15,11 @@ const FAILED = "TI Assistant didn't return that game. Check the link, or fill th
 // The host is fixed. env.TI_ASSISTANT_BASE exists only so the checks can point at
 // a local stub (set with `wrangler pages dev --binding`, never in wrangler.jsonc
 // and never from a request).
-const baseOf = (env) =>
-  typeof env.TI_ASSISTANT_BASE === "string" && env.TI_ASSISTANT_BASE ? env.TI_ASSISTANT_BASE.replace(/\/+$/, "") : PROD_BASE;
+function baseOf(env) {
+  const b = env.TI_ASSISTANT_BASE;
+  if (typeof b !== "string" || !b) return PROD_BASE;
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+}
 
 // GET one fixed URL as JSON. Redirects are not followed, a time limit, and the body is read as
 // a stream and dropped past MAX_BYTES. Throws on anything else.

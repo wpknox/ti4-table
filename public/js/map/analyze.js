@@ -340,6 +340,12 @@ function mecatolFinding(add, s, table) {
   }
 }
 
+// A note, never a warn: Thunder's Edge may not come into play.
+function teFinding(add, s, best) {
+  const te = s.metrics.thundersEdge.nearest;
+  if (best !== null && (te === null || te - best >= 2)) add(s.seat, "note", "te-far", { value: te, best });
+}
+
 function findSeatFindings(seats, table, graph, tileAt) {
   const n = seats.length;
   const hasLegendary = (pos) => graph.info(tileAt.get(pos)).planets.some((p) => p.legendary);
@@ -363,9 +369,7 @@ function findSeatFindings(seats, table, graph, tileAt) {
       add(s.seat, "good", "legendary", { names: m.legendary, sharedWith });
     }
     if (m.adjacentPlanets < MIN_ADJACENT) add(s.seat, "warn", "few-adjacent", { value: m.adjacentPlanets });
-    // A note, never a warn: Thunder's Edge may not come into play.
-    const te = m.thundersEdge.nearest;
-    if (teBest !== null && (te === null || te - teBest >= 2)) add(s.seat, "note", "te-far", { value: te, best: teBest });
+    teFinding(add, s, teBest);
   }
   return findings;
 }

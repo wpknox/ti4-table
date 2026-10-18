@@ -145,32 +145,43 @@ function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, s
   const cls = tileClasses(t, info, homeSeat);
   const hasArt = isArt && art.has(t.id);
   if (hasArt) cls.push("pic");
-  const attrs = [
+  const out = [`<g ${cellAttrs(c, cls, seats, homeSeat, label)}>`, `<polygon class="face" points="${hexPoints(R * GAP)}"/>`];
+  const shared = !homeSeat && sharedPos.has(t.pos);
+  const teMark = isTe ? `<polygon class="te-spot" points="${hexPoints(R * GAP * 0.72)}"/>` : "";
+  if (hasArt) return [...out, ...artWithMark(t, homeSeat, shared, teMark)];
+  if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
+  if (shared) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
+  out.push(...innerMarks(t, info, homeSeat, symbols, seatLabels));
+  if (teMark) out.push(teMark);
+  out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
+  return out;
+}
+
+// The hex group's attributes: classes, seats, the spoken label, and its place.
+function cellAttrs(c, cls, seats, homeSeat, label) {
+  return [
     `class="${cls.join(" ")}"`,
-    `data-pos="${t.pos}"`,
+    `data-pos="${c.t.pos}"`,
     seats.length ? `data-seats="${seats.join(" ")}"` : "",
     `data-label="${esc(label)}"`,
     homeSeat ? `role="button" tabindex="0" aria-pressed="false"` : `role="img"`,
     `aria-label="${esc(label)}"`,
     `transform="translate(${f(c.x * R)} ${f(c.y * R)})"`,
-  ].filter(Boolean);
-  const out = [`<g ${attrs.join(" ")}>`, `<polygon class="face" points="${hexPoints(R * GAP)}"/>`];
-  const shared = !homeSeat && sharedPos.has(t.pos);
-  const teMark = isTe ? `<polygon class="te-spot" points="${hexPoints(R * GAP * 0.72)}"/>` : "";
-  if (hasArt) {
-    const pieces = artTile(t, homeSeat, shared);
-    if (teMark) pieces.splice(pieces.length - 2, 0, teMark); // before the edge and the closing </g>
-    return [...out, ...pieces];
-  }
-  if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
-  if (shared) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
+  ].filter(Boolean).join(" ");
+}
 
-  if (info?.type === "hyperlane" && info.hyperlanes) out.push(...laneLines(info, t));
-  else if (homeSeat) out.push(...homeMarks(info, homeSeat, symbols, seatLabels?.[homeSeat]));
-  else if (t.id !== "0") out.push(...systemMarks(info));
-  if (teMark) out.push(teMark);
-  out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
-  return out;
+// What's drawn inside the hex: hyperlane lanes, a home's numeral, or a system's planets.
+function innerMarks(t, info, homeSeat, symbols, seatLabels) {
+  if (info?.type === "hyperlane" && info.hyperlanes) return laneLines(info, t);
+  if (homeSeat) return homeMarks(info, homeSeat, symbols, seatLabels?.[homeSeat]);
+  return t.id === "0" ? [] : systemMarks(info);
+}
+
+// The art tile's pieces, with the Thunder's Edge mark (if any) before its edge and closing </g>.
+function artWithMark(t, homeSeat, shared, teMark) {
+  const pieces = artTile(t, homeSeat, shared);
+  if (teMark) pieces.splice(pieces.length - 2, 0, teMark);
+  return pieces;
 }
 
 // pos -> seat numbers whose slice it is in, and the set of shared positions.
