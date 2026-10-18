@@ -1,12 +1,11 @@
-# Plan: log past games (from memory, paste import, TI Assistant link)
+# Plan: log past games (from memory, TI Assistant link)
 
 ## Goal
 
-The group can put its history into the log, even when nobody remembers the scores, and future games can be filled in from a TI Assistant link. The work is in three phases. Build them in order, one agent per phase, and the orchestrator reviews each before the next starts.
+The group can put its history into the log, even when nobody remembers the scores, and future games can be filled in from a TI Assistant link. The work is in two phases (a paste import was planned as phase B and dropped by the owner on 2026-10-18: the old games are few and remembered, so the form is enough). Build them in order, one agent per phase, and the orchestrator reviews each before the next starts.
 
 - **Phase A:** "from memory" games, with stats that handle unknowns
-- **Phase B:** paste import, for many old games at once (admin page, no new API)
-- **Phase C:** fill a game from a TI Assistant link (new API endpoint)
+- **Phase C:** fill a game from a TI Assistant link or file, scores included for archived games (new API endpoint)
 
 Depends on `docs/plans/refactor-ui.md` being done. It provides `games/validate.js`, `games/form-state.js` and `games/combo.js`. Read `docs/research/ti-assistant.md` before phase C.
 
@@ -42,7 +41,7 @@ Ground rules for every phase:
 | status | planned or finished | finished only (`from_memory` with `planned` is a 400) |
 
 - A from-memory seat with points greater than the winner's points is allowed, because people misremember.
-- The hourly create limit in `server/games.js` (30 per player per hour) stays for live games. From-memory games get their own count of 200 per hour, using the same query plus `AND from_memory = 1`.
+- The hourly create limit in `server/games.js` (30 per player per hour) applies to from-memory games too, unchanged.
 - The revision snapshot (`revisionInsert`) and `revertGame` must include `from_memory` and `date_precision`. Old snapshots without them restore as `0` and `'day'`. Use `COALESCE`, as `status` does.
 - `GET` responses include `from_memory` (boolean) and `date_precision`.
 
@@ -87,59 +86,7 @@ Ground rules for every phase:
 - from memory + planned → 400
 - month precision with `played_on` 2024-07-15 → 400
 - year precision 2024-01-01 → 201
-- the from-memory limit doesn't consume the live limit
 - a revert restores `from_memory`
-
----
-
-## Phase B: paste import (admin only)
-
-### Approach
-
-A new page at `/games/import`, linked from the Admin page only.
-
-1. The page parses pasted text **in the browser**.
-2. It shows a preview.
-3. It then creates games one at a time through the existing `POST /api/games`, with `from_memory: true`.
-
-There's **no new endpoint**. `client_id` is `import-` plus a hash of the normalised line (SHA-256 via `crypto.subtle`, first 24 hex characters), so pasting the same text twice creates nothing new. That works because the API already returns the existing id for a known `client_id`.
-
-### Format (show it on the page with an example)
-
-One game per line. Fields are separated by `|`. Blank lines and lines starting with `#` are ignored.
-
-```
-date | seats | options | notes
-2024-07 | Player 1: Sol 10*, Player 2: Hacan 7, Player 3: ? | vp=10 pok | Long one
-2023 | Player 1: Jol-Nar*, Player 2: Xxcha, Player 4: Naalu
-```
-
-- **date:** `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. This sets the date precision.
-- **seats:** comma-separated `name: faction [points] [*]`.
-  - `*` marks the winner. Exactly one is required.
-  - `?` or an empty value means the faction isn't known.
-  - Points are optional.
-  - Seat order is the order written, but `seat_index` stays null because positions aren't known.
-- **options** (optional): space-separated `vp=N` (default 10), `pok` / `nopok` (default PoK on), `te`.
-- **notes** (optional): the rest of the line.
-
-### Matching
-
-- **Factions:** use `factionId()` from `public/js/factions.js`, which already normalises "The", hyphens and apostrophes. Also accept short names: the last word, or the name without its prefix, such as "Sol", "Hacan", "Jol-Nar", "Naaz-Rokha", "L1Z1X", "Keleres". Do this through a small alias map in a new pure module `games/match.js`. Phase C reuses it.
-- **Players:** match names to the roster from `GET /api/players`, ignoring case and extra spaces.
-  - The preview lists each unknown name once, with a choice: "Add as a guest" (`POST /api/players`) or "Same as …" (a select of existing players).
-  - Nothing is created until the admin presses the import button.
-
-### Preview and import
-
-- **Table:** one row per line, showing the date, the seats (winner marked), and either "Ready" or a plain error such as "Line 4: no winner marked (put * after the winner)". Lines with errors are skipped, never guessed.
-- **Button:** "Import N games". It creates the guests first, then the games, sequentially, with progress shown ("12 of 40"). The result lists links to the new games and any failures with the server's message.
-- **Parser:** pure, in `games/import-parse.js`. Add `scripts/check-import.mjs` with at least 15 cases: each error, each date form, `?` factions, aliases, a duplicate player in one line, two winners, and a CRLF paste.
-
-### Security
-
-- The page is admin-only in the UI. The API rules already apply to every write, so an editor who finds the page can do no more than the normal form allows.
-- Players are created through the existing endpoint, which has the 40-character limit and the uniqueness check.
 
 ---
 
@@ -191,13 +138,19 @@ Put the parsing in a pure, shared module `public/js/games/ti-assistant.js`. It e
 
 Never compute points from the action log. It disagrees with the archive: Imperial and Custodians points are missing, and some objectives scored after the game ended are present (research doc section 4c). Use the archive entry or nothing.
 
+### Matching (`public/js/games/match.js`, new, pure)
+
+- **Factions:** use `factionId()` from `public/js/factions.js`, which already normalises "The", hyphens and apostrophes. All six faction names in the owner's real export matched it.
+- **Players:** `matchPlayer(name, roster)` compares a TI Assistant `playerName` with the roster from `GET /api/players`, ignoring case, accents and extra spaces. It returns the player id or null. Only an exact normalised match counts: no fuzzy matching, because a wrong match credits a win to the wrong friend.
+- Test both in `scripts/check-ti-assistant.mjs`.
+
 ### Form
 
 - On `/games/new` only: above the date, add a field "TI Assistant link" with the button "Fill from TI Assistant".
 - On success, the form fills in:
   - date, points to win, expansions, map string, seat count and positions, factions, colours and speaker
   - the TI Assistant link field
-  - players, by matching names against the roster with the phase B matcher. An unmatched name leaves the player empty, with a hint under the seat: "TI Assistant calls this player 'X'". Use `esc()`.
+  - players, by matching names against the roster with `matchPlayer`. An unmatched name leaves the player empty, with a hint under the seat: "TI Assistant calls this player 'X'". Use `esc()`.
 - Fill points and the winner too, when `scores_from_archive` is true. The toast then says "Filled from TI Assistant. Check it, then save." Otherwise it says "Filled from TI Assistant. Add the final points and winner." Nothing is saved until the person presses save.
 - On failure, show the server's message. The form stays usable.
 - **Next to the link field, offer "Or load a TI Assistant file"** (`<input type="file" accept="application/json,.json">`). It reads the file in the browser (max 5 MB, `JSON.parse` in a try) and runs the same `trimTiGame`. The file never leaves the phone, so no server call is needed. This covers archived games and the data file TI Assistant offers for download. It fills the same fields, except the link and scores. If the file name looks like TI Assistant's download, `<id>_data.json` with an id matching the regex, also offer "Get the final scores from TI Assistant". That calls the endpoint with the id. Without that id, the person adds the scores by hand.
