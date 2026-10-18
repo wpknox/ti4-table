@@ -2,6 +2,7 @@ import { HttpError, error, checkMutation } from "./http.js";
 import { loadPlayer, me, redeem, logout, deviceCode } from "./auth.js";
 import { listPlayers, createPlayer, renamePlayer } from "./players.js";
 import { listGames, getGame, createGame, updateGame, deleteGame } from "./games.js";
+import { tiAssistantGame } from "./ti-assistant.js";
 import { makeInvite, listAdminPlayers, patchPlayer, revokeSessions, restoreGame, listRevisions, revertGame } from "./admin.js";
 
 // ── SQL rule ───
@@ -11,12 +12,14 @@ import { makeInvite, listAdminPlayers, patchPlayer, revokeSessions, restoreGame,
 // strings in code. Lists of ids go in as one JSON value read with json_each(?).
 
 // ── Route table ───
-// Path params are passed as numbers. Role checks live in the handlers.
+// :id is passed as a number; :gid (a TI Assistant game id) as a raw string that its
+// handler validates, so a bad one gets a 400 rather than a 404. Role checks live in the handlers.
 const ROUTES = [
   ["GET", "/api/me", me],
   ["GET", "/api/players", listPlayers],
   ["GET", "/api/games", listGames],
   ["GET", "/api/games/:id", getGame],
+  ["GET", "/api/ti-assistant/:gid", tiAssistantGame],
   ["POST", "/api/auth/redeem", redeem],
   ["POST", "/api/auth/logout", logout],
   ["POST", "/api/auth/device-code", deviceCode],
@@ -34,8 +37,9 @@ const ROUTES = [
   ["POST", "/api/admin/games/:id/revert", revertGame],
 ].map(([method, path, fn]) => ({
   method, fn,
-  re: new RegExp("^" + path.replace(":id", "(\\d{1,12})") + "/?$"),
+  re: new RegExp("^" + path.replace(":id", "(\\d{1,12})").replace(":gid", "([^/]{1,100})") + "/?$"),
   hasId: path.includes(":id"),
+  hasGid: path.includes(":gid"),
 }));
 
 // ── Entry ───
@@ -50,7 +54,12 @@ export async function handle(request, env) {
     const ctx = { request, env, url, player: null, setCookie: null };
     if (request.method !== "GET") checkMutation(request, url);
     await loadPlayer(ctx);
-    const id = route.hasId ? Number(url.pathname.match(route.re)[1]) : undefined;
+    const param = url.pathname.match(route.re)[1];
+    let id;
+    if (route.hasId) id = Number(param);
+    else if (route.hasGid) {
+      try { id = decodeURIComponent(param); } catch { id = ""; } // "" fails the handler's check
+    }
     const res = await route.fn(ctx, id);
     if (ctx.setCookie) res.headers.append("set-cookie", ctx.setCookie);
     return res;

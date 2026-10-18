@@ -29,9 +29,10 @@ function stopAll() {
 process.on("exit", stopAll);
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { stopAll(); process.exit(130); });
 
-export async function startServer({ port, state }) {
+// `args` are extra wrangler flags, e.g. ["--binding", "NAME=value"].
+export async function startServer({ port, state, args = [] }) {
   const base = `http://localhost:${port}`;
-  const server = spawn("npx", ["wrangler", "pages", "dev", "--port", String(port), "--persist-to", state],
+  const server = spawn("npx", ["wrangler", "pages", "dev", "--port", String(port), "--persist-to", state, ...args],
     { detached: true, stdio: ["ignore", "pipe", "pipe"] });
   running.add(server);
   const stop = () => {

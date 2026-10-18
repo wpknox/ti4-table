@@ -2,11 +2,16 @@
 //   npm run check:api
 // Uses a private local D1 in .wrangler/check-state, starts `wrangler pages dev`
 // on port 8790, runs every check, and always stops the server. Node built-ins only.
+import { createServer } from "node:http";
 import { startServer, resetState, makeInvite as invite, wrangler } from "./lib/dev-server.mjs";
+import {
+  LIVE_ID, LIVE_GAME, ARCHIVED_ID, ARCHIVED_EXPORT, ARCHIVED_START, ARCHIVE_PAGE,
+} from "./fixtures/ti-assistant.mjs";
 
 const PORT = 8790;
 const BASE = `http://localhost:${PORT}`;
 const STATE = ".wrangler/check-state";
+const STUB_PORT = 8792;
 
 // ── Helpers ───
 let failures = 0;
@@ -59,11 +64,43 @@ function gameBody(playerIds, over = {}) {
 }
 
 let server;
+let stub;
+
+// ── TI Assistant stub ───
+// Stands in for ti-assistant.com (wrangler gets it as TI_ASSISTANT_BASE), serving
+// made-up fixtures. `seen` records every request path so the checks can see what
+// the server asked for.
+const seen = [];
+function startStub() {
+  const sendJson = (res, body) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
+  stub = createServer((req, res) => {
+    const url = new URL(req.url, "http://stub");
+    seen.push(req.url);
+    const m = url.pathname.match(/^\/api\/([A-Za-z0-9]+)\/download$/);
+    if (m?.[1] === LIVE_ID) return sendJson(res, LIVE_GAME);
+    if (m?.[1] === ARCHIVED_ID) return sendJson(res, ARCHIVED_EXPORT);
+    if (m?.[1] === "NotJs1") { res.writeHead(200, { "content-type": "text/html" }); return res.end("<html>nope</html>"); }
+    if (m?.[1] === "Redir1") { res.writeHead(302, { location: "https://example.com/" }); return res.end(); }
+    if (m?.[1] === "BigBig") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.write('{"pad":"');
+      for (let i = 0; i < 40; i++) res.write("x".repeat(100000));
+      return res.end('"}');
+    }
+    if (m?.[1] === "Hang42") return; // never answers
+    if (url.pathname === "/api/archived-games") {
+      return sendJson(res, url.searchParams.get("timestamp") === String(ARCHIVED_START + 1) ? ARCHIVE_PAGE : {});
+    }
+    res.writeHead(404); res.end("not found");
+  });
+  return new Promise((resolve) => stub.listen(STUB_PORT, "127.0.0.1", resolve));
+}
 
 // ── Run ───
 async function run() {
   resetState(STATE);
-  server = await startServer({ port: PORT, state: STATE });
+  await startStub();
+  server = await startServer({ port: PORT, state: STATE, args: ["--binding", `TI_ASSISTANT_BASE=http://127.0.0.1:${STUB_PORT}`] });
 
   const admin = await signIn("Admin A", "admin");
   const e1 = await signIn("Ed One", "editor");
@@ -457,6 +494,8 @@ async function run() {
   check("A revert to a pre-0003 snapshot restores from_memory false and day precision",
     strip.status === 0 && r.status === 200 && fromOld.from_memory === false && fromOld.date_precision === "day", `${strip.status} ${r.status} ${fromOld?.from_memory} ${fromOld?.date_precision}`);
 
+  await tiAssistantChecks({ e1, e2, e3, reader });
+
   // Roles
   r = await api("PATCH", `/api/admin/players/${e3.id}`, { cookie: admin.cookie, body: { role: "none" } });
   check("Admin sets Ed Three's role to none", r.status === 200, r.status);
@@ -464,6 +503,69 @@ async function run() {
   check("Ed Three's old cookie can no longer create games", r.status === 401 || r.status === 403, r.status);
   r = await api("GET", "/api/me", { cookie: e3.cookie });
   check("Ed Three's old cookie gives /api/me {player:null}", r.data.player === null);
+  r = await api("GET", `/api/ti-assistant/${LIVE_ID}`, { cookie: e3.cookie });
+  check("TI Assistant lookup with a role-none cookie -> 401", r.status === 401, r.status);
+}
+
+// ── TI Assistant endpoint ───
+async function tiAssistantChecks({ e1, reader }) {
+  const ti = (id, who = e1) => api("GET", `/api/ti-assistant/${id}`, { cookie: who?.cookie });
+  const downloads = (id) => seen.filter((p) => p === `/api/${id}/download`).length;
+
+  let r = await ti(LIVE_ID, null);
+  check("TI Assistant lookup signed out -> 401", r.status === 401, r.status);
+  check("A signed-out lookup never reached the stub", seen.length === 0, seen.join(" "));
+  for (const bad of ["..%2Fx", "abcdefghijklm", "ab_cd", "abc", "%E0%A4%A"]) {
+    r = await ti(bad);
+    check(`TI Assistant lookup with bad id ${bad} -> 400`, r.status === 400, r.status);
+  }
+  check("Bad ids never reached the stub", seen.length === 0, seen.join(" "));
+
+  r = await ti(LIVE_ID);
+  check("A live game returns its setup without scores",
+    r.status === 200 && r.data.played_on === "2026-04-11" && r.data.points_to_win === 12 && r.data.seats.length === 4 &&
+    r.data.scores_from_archive === false && r.data.seats.every((s) => s.points === null && !s.is_winner), JSON.stringify(r.data));
+  check("The response holds only the trimmed fields",
+    r.data && !("actionLog" in r.data) && !JSON.stringify(r.data).includes("Make Up Objective") &&
+    Object.keys(r.data).sort().join() === "played_on,points_to_win,pok,te,map_string,speaker_index,scores_from_archive,seats".split(",").sort().join());
+  check("The stub saw only the fixed download and archive paths",
+    seen.every((p) => p === `/api/${LIVE_ID}/download` || p.startsWith("/api/archived-games?timestamp=")), seen.join(" "));
+
+  r = await ti(ARCHIVED_ID);
+  const winners = r.data?.seats?.filter((s) => s.is_winner) ?? [];
+  check("An archived game returns the official points and one winner",
+    r.status === 200 && r.data.scores_from_archive === true && winners.length === 1 && winners[0].faction === "F_jol_nar" &&
+    r.data.seats.slice(0, 5).map((s) => s.points).join() === "10,8,8,7,7", JSON.stringify(r.data));
+  check("The other games on the archive page are not returned", !JSON.stringify(r.data).includes("OtHer") && !JSON.stringify(r.data).includes("Winnu"));
+
+  const before = downloads(LIVE_ID);
+  r = await ti(LIVE_ID, reader);
+  check("A repeat lookup is served from the cache (5 minutes)", r.status === 200 && downloads(LIVE_ID) === before, `${before} -> ${downloads(LIVE_ID)}`);
+
+  r = await ti("Gone01");
+  check("An unknown game -> 502 with a plain message", r.status === 502 && /fill the form in by hand/.test(r.data?.error), `${r.status} ${r.data?.error}`);
+  r = await ti("NotJs1");
+  check("A reply that isn't JSON -> 502", r.status === 502, r.status);
+  r = await ti("Redir1");
+  check("A redirect is not followed -> 502", r.status === 502 && !seen.some((p) => p.includes("example")), r.status);
+  r = await ti("BigBig");
+  check("A body over 2 MB -> 502", r.status === 502, r.status);
+  const t0 = Date.now();
+  r = await ti("Hang42");
+  check("A host that never answers -> 502 after about 8 seconds", r.status === 502 && Date.now() - t0 < 15000 && Date.now() - t0 >= 7000, `${r.status} ${Date.now() - t0} ms`);
+
+  // The limit is 20 an hour per player. Use a fresh editor so earlier calls don't count.
+  const lim = await signIn("Rate Tester", "editor");
+  let last = null, ok = 0;
+  for (let i = 0; i < 20; i++) {
+    last = await ti(LIVE_ID, lim);
+    if (last.status === 200) ok++;
+  }
+  check("20 lookups in an hour succeed", ok === 20, `${ok} ok`);
+  r = await ti(LIVE_ID, lim);
+  check("The 21st lookup -> 429", r.status === 429, r.status);
+  r = await ti(LIVE_ID, reader);
+  check("The limit is per player: another editor is not blocked", r.status === 200, r.status);
 }
 
 try {
@@ -473,6 +575,8 @@ try {
   console.log(`FAIL  ${err.message}`);
 } finally {
   server?.stop();
+  stub?.closeAllConnections?.();
+  stub?.close();
 }
 console.log(failures ? `${failures} check(s) failed` : "All checks passed");
 process.exit(failures ? 1 : 0);

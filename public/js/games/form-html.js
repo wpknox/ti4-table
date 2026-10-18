@@ -11,6 +11,7 @@ export function formHtml(f) {
   const st = f.st;
   return `
       ${memoryHtml(f)}
+      ${f.canFill ? tiFillHtml(f) : ""}
       <div class="fields">
         <div class="field"><label for="f-date">${f.plan ? "Playing on" : "Date"}</label>${dateInput(f)}</div>
         <div class="field"><span class="label" id="l-ptw">Points to win</span>${stepper("ptw", st.points_to_win, "points to win")}</div>
@@ -28,8 +29,7 @@ export function formHtml(f) {
 
       <h2>More about the game</h2>
       ${mapFieldHtml(f)}
-      <div class="field"><label for="f-ti">TI Assistant link <span class="muted">(optional)</span></label>
-        <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://" value="${esc(st.ti_assistant_url)}"></div>
+      ${f.canFill ? "" : tiLinkField(st)}
       <div class="field"><label for="f-notes">Notes <span class="muted">(optional)</span></label>
         <textarea id="f-notes" rows="3">${esc(st.notes)}</textarea></div>
 
@@ -37,6 +37,22 @@ export function formHtml(f) {
         <button type="submit" class="btn btn-primary save" id="save">${f.saveLabel}</button>
         ${f.editId ? `<a class="btn" href="/games/${f.editId}">Cancel</a>` : `<button type="button" class="btn" id="cancel">Cancel</button>`}
       </div>`;
+}
+
+const tiLinkField = (st) => `<div class="field"><label for="f-ti">TI Assistant link <span class="muted">(optional)</span></label>
+        <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://" value="${esc(st.ti_assistant_url)}"></div>`;
+
+// New finished games only: fill the form from a TI Assistant link or a downloaded file.
+// The link field is the game's own TI Assistant link, so it is not shown twice.
+function tiFillHtml(f) {
+  return `<div class="ti-fill">
+      <div class="field"><label for="f-ti">TI Assistant link <span class="muted">(optional)</span></label>
+        <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://ti-assistant.com/en/game/…" value="${esc(f.st.ti_assistant_url)}">
+        <button type="button" class="btn" id="ti-fill">Fill from TI Assistant</button></div>
+      <div class="field"><label for="f-ti-file">Or load a TI Assistant file</label>
+        <input id="f-ti-file" type="file" accept="application/json,.json">
+        <button type="button" class="btn" id="ti-scores" hidden>Get the final scores from TI Assistant</button></div>
+    </div>`;
 }
 
 // The "from memory" switch (log mode only) and, when on, how exact the date is.
@@ -124,6 +140,7 @@ export function seatHtml(f, s, i) {
     ${top}
     <div class="field"><label for="p-${s.key}">Player</label>
       <div class="combo" data-kind="player"><input id="p-${s.key}" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Choose a player" value="${esc(s.player_name)}"><ul class="combo-list" role="listbox" hidden></ul></div></div>
+    ${s.ti_hint && s.player_id == null ? `<p class="ti-hint muted">TI Assistant calls this player “${esc(s.ti_hint)}”</p>` : ""}
     ${factionHtml(f, s)}
     <div class="field two">
       <div><label for="c-${s.key}">Colour <span class="muted">(optional)</span></label>

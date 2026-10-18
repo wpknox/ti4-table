@@ -20,7 +20,9 @@ import { tabs, todayLocal, safeTiLink, mapHref, sym, errorBlock } from "./ui.js"
 import { checkGameBody } from "./validate.js";
 import {
   MAX_SEATS, newSeat, blank, pickWinner, modeOf, usableDraft, fitSeats, fromGame, sanitiseDraft, toBody,
+  fillFromTi, applyTiScores,
 } from "./form-state.js";
+import { trimTiGame, tiGameId } from "./ti-assistant.js";
 import { formHtml, seatHtml } from "./form-html.js";
 import { bindCombo, playerOptions, factionOptions } from "./combo.js";
 
@@ -79,6 +81,10 @@ function dateFromInput(precision, value, keep) {
   return value;
 }
 
+const MAX_TI_FILE = 5 * 1024 * 1024;
+// TI Assistant's own download is named <game id>_data.json.
+const TI_FILE_ID = /^([A-Za-z0-9]{4,12})_data\.json$/;
+
 // ── The form ───────────────────────────────────────────────────────────────
 
 class Form {
@@ -90,6 +96,9 @@ class Form {
 
   // Logging from memory (only in log mode; plan and finish never use it).
   get memory() { return this.st.from_memory && !this.plan && !this.finish; }
+
+  // Filling from TI Assistant is for logging a new finished game.
+  get canFill() { return !this.editId && !this.plan && !this.finish; }
 
   get title() {
     if (this.finish) return "Enter results";
@@ -127,6 +136,8 @@ class Form {
     this.updateWinner();
     void hydrateSymbols(this.form);
     void this.updateMap();
+    const scores = $("#ti-scores", this.form);
+    if (scores) scores.hidden = !this.tiFileId;
   }
 
   addHidden() { return this.fixed || this.st.seats.length >= MAX_SEATS; }
@@ -253,7 +264,9 @@ class Form {
       this.redrawSeats();
       const last = $$(".seat-card", this.form).at(-1);
       $("input", last)?.focus();
-    } else if (t.id === "cancel") {
+    } else if (t.id === "ti-fill") void this.fillFromLink();
+    else if (t.id === "ti-scores") void this.getScores();
+    else if (t.id === "cancel") {
       back("/games");
     } else if (t.matches("input[type=radio][data-f=speaker]")) {
       // Clicking the chosen speaker again clears it.
@@ -281,6 +294,7 @@ class Form {
     const t = e.target;
     const st = this.st;
     if (t.id === "f-date") st.played_on = dateFromInput(st.date_precision, t.value, st.played_on);
+    else if (t.id === "f-ti-file") { void this.loadFile(t.files?.[0]); return; }
     else if (t.id === "f-mem") this.setMemory(t.checked);
     else if (t.id === "f-prec") this.setPrecision(t.value);
     else if (t.id === "f-pok") st.pok = t.checked;
@@ -382,6 +396,8 @@ class Form {
   }
 
   setPlayer(seat, id, name, input) {
+    $(".ti-hint", input.closest(".seat-card"))?.remove();
+    seat.ti_hint = "";
     seat.player_id = id;
     seat.player_name = name;
     input.value = name;
@@ -409,6 +425,70 @@ class Form {
       input.value = seat.player_name;
       this.showError(err.message);
     }
+  }
+
+  // ── TI Assistant ──
+  // Asks our server for a game (it fetches from TI Assistant). Null if it failed, with the message shown.
+  async fetchTi(id) {
+    this.showError("");
+    const btns = $$("#ti-fill, #ti-scores", this.form);
+    btns.forEach((b) => { b.disabled = true; });
+    try {
+      return await get(`/api/ti-assistant/${encodeURIComponent(id)}`);
+    } catch (err) {
+      this.showError(err.offline ? "You're offline. Load a TI Assistant file instead, or fill the form in by hand." : err.message);
+      return null;
+    } finally {
+      btns.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  async fillFromLink() {
+    this.syncText();
+    const pasted = this.st.ti_assistant_url.trim();
+    const id = tiGameId(pasted);
+    if (!id) {
+      this.showError("Paste a TI Assistant game link first. It looks like https://ti-assistant.com/en/game/AbC123.");
+      return;
+    }
+    const t = await this.fetchTi(id);
+    if (!t || !this.form.isConnected) return;
+    fillFromTi(this.st, t, this.players);
+    this.st.ti_assistant_url = safeTiLink(pasted) ? pasted : `https://ti-assistant.com/en/game/${id}`;
+    this.tiFileId = null;
+    this.draw();
+    this.persist();
+    toast(t.scores_from_archive ? "Filled from TI Assistant. Check it, then save." : "Filled from TI Assistant. Add the final points and winner.");
+  }
+
+  // A file the person downloaded from TI Assistant. It is read here and never uploaded.
+  async loadFile(file) {
+    if (!file) return;
+    this.syncText();
+    if (file.size > MAX_TI_FILE) { this.showError("That file is too big to be a TI Assistant game (5 MB at most)."); return; }
+    let t = null;
+    try { t = trimTiGame(JSON.parse(await file.text())); } catch { /* reported below */ }
+    if (!t) { this.showError("That doesn't look like a TI Assistant game file. Check it, or fill the form in by hand."); return; }
+    if (!this.form.isConnected) return;
+    this.showError("");
+    fillFromTi(this.st, t, this.players);
+    this.tiFileId = file.name.match(TI_FILE_ID)?.[1] ?? null;
+    this.draw();
+    this.persist();
+    toast(this.tiFileId ? "Filled from the file. Get the final scores, or add them by hand." : "Filled from the file. Add the final points and winner.");
+  }
+
+  async getScores() {
+    this.syncText();
+    const t = await this.fetchTi(this.tiFileId);
+    if (!t || !this.form.isConnected) return;
+    if (!applyTiScores(this.st, t)) {
+      this.showError("TI Assistant has no final scores for that game. Add the points and winner by hand.");
+      return;
+    }
+    this.draw();
+    this.persist();
+    toast("Scores filled in from TI Assistant. Check them, then save.");
   }
 
   // ── Draft ──

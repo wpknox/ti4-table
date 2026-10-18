@@ -4,13 +4,14 @@
 import { FACTION_IDS, COLORS } from "./names.js";
 import { todayLocal } from "./ui.js";
 import { LIMITS } from "./validate.js";
+import { matchPlayer } from "./match.js";
 
 export const MIN_SEATS = LIMITS.minSeats, MAX_SEATS = LIMITS.maxSeats, START_SEATS = 6;
 
 export const PRECISIONS = ["day", "month", "year"];
 
 let keySeq = 0;
-export const newSeat = () => ({ key: `s${++keySeq}`, player_id: null, player_name: "", faction: "", color: "", seat_index: null, points: 0 });
+export const newSeat = () => ({ key: `s${++keySeq}`, player_id: null, player_name: "", faction: "", color: "", seat_index: null, points: 0, ti_hint: "" });
 
 export const blank = () => ({
   client_id: crypto.randomUUID(),
@@ -95,6 +96,7 @@ export function sanitiseDraft(d, fallback) {
     color: COLORS.includes(s?.color) ? s.color : "",
     seat_index: int(s?.seat_index, 0, MAX_SEATS - 1, null),
     points: int(s?.points, 0, LIMITS.maxPoints, memory ? null : 0),
+    ti_hint: str(s?.ti_hint).slice(0, LIMITS.name),
   }));
   while (seats.length < MIN_SEATS) seats.push(newSeat());
   // Keys are per session, so a draft remembers winner and speaker by position.
@@ -109,6 +111,57 @@ export function sanitiseDraft(d, fallback) {
     notes: str(d.notes).slice(0, LIMITS.notes),
     seats, winner: at(d.winner_i), speaker: at(d.speaker_i),
   };
+}
+
+// ── TI Assistant ───────────────────────────────────────────────────────────
+
+// Fills the state from a trimmed TI Assistant game (see ti-assistant.js). Players are
+// matched to the roster by exact name; an unmatched seat keeps the TI Assistant name as
+// a hint. Points and the winner come only from the archive, otherwise they are left
+// for the person (unknown in a from-memory game, 0 otherwise).
+export function fillFromTi(st, t, roster) {
+  st.played_on = t.played_on;
+  st.date_precision = "day";
+  st.points_to_win = t.points_to_win;
+  st.pok = t.pok;
+  st.te = t.te;
+  st.map_string = t.map_string ?? "";
+  const taken = new Set();
+  const seats = t.seats.map((ts) => {
+    const seat = newSeat();
+    const id = matchPlayer(ts.name, roster);
+    if (id != null && !taken.has(id)) {
+      taken.add(id);
+      seat.player_id = id;
+      seat.player_name = roster.find((p) => p.id === id).name;
+    } else if (ts.name) seat.ti_hint = ts.name;
+    seat.faction = ts.faction ?? "";
+    seat.color = ts.color ?? "";
+    seat.seat_index = ts.seat_index;
+    seat.points = ts.points ?? (st.from_memory ? null : 0);
+    return seat;
+  });
+  while (seats.length < MIN_SEATS) seats.push(newSeat());
+  st.seats = seats;
+  st.speaker = t.speaker_index != null ? seats[t.speaker_index]?.key ?? null : null;
+  const w = t.seats.findIndex((ts) => ts.is_winner);
+  st.winner = w >= 0 ? seats[w].key : null;
+}
+
+// Adds only the official points and winner to seats already on the form, matching
+// by faction (the person may have changed players or positions since).
+// Returns how many seats got a score.
+export function applyTiScores(st, t) {
+  let n = 0;
+  st.winner = null;
+  for (const ts of t.seats) {
+    const seat = ts.faction ? st.seats.find((s) => s.faction === ts.faction) : null;
+    if (!seat || ts.points == null) continue;
+    seat.points = ts.points;
+    if (ts.is_winner) st.winner = seat.key;
+    n++;
+  }
+  return n;
 }
 
 // ── The request ────────────────────────────────────────────────────────────

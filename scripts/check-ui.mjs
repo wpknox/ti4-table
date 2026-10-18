@@ -6,6 +6,7 @@
 import { pathToFileURL } from "node:url";
 import { startServer, resetState, makeInvite } from "./lib/dev-server.mjs";
 import { MAPS } from "./fixtures/maps.mjs";
+import { ARCHIVED_EXPORT } from "./fixtures/ti-assistant.mjs";
 
 const PORT = 8791;
 const STATE = ".wrangler/ui-state";
@@ -221,6 +222,42 @@ async function run() {
     await page.waitForSelector(".bar-fill", { timeout: 10000 });
     check("Stats say how many games were logged from memory",
       (await page.locator("#memory-note").innerText()).trim() === "1 of these was logged from memory, so some scores and factions are missing.");
+  });
+
+  await step("Fill from a TI Assistant file", async () => {
+    const roster = await post("/api/players", { name: "Player 1" });
+    check("A guest named like a TI Assistant player exists", roster.status < 300, roster.status);
+    await go("/games/new");
+    check("The fill button and file picker are on the new-game form", (await page.locator("#ti-fill, #f-ti-file").count()) === 2);
+    check("The link field is not shown twice", (await page.locator("#f-ti").count()) === 1);
+    await page.click("#ti-fill");
+    await page.waitForSelector("#form-err:not([hidden])");
+    check("Fill with no link says to paste one", /Paste a TI Assistant game link/.test(await page.locator("#form-err").innerText()));
+
+    const hostile = structuredClone(ARCHIVED_EXPORT);
+    const snaps = hostile.actionLog.filter((e) => e.data.action === "ADVANCE_PHASE");
+    for (const e of snaps) e.data.event.factions["Deepwrought Scholarate"].playerName = XSS_NAME.replace("=1", "=2"); // not on the roster, so it shows as a hint
+    const upload = (name, json) => page.setInputFiles("#f-ti-file", { name, mimeType: "application/json", buffer: Buffer.from(JSON.stringify(json)) });
+    await upload("XyZ789_data.json", hostile);
+    await page.waitForFunction(() => document.querySelector("#f-date")?.value === "2026-04-11");
+    check("The file fills the date and six seats", (await page.inputValue("#f-date")) === "2026-04-11" && (await page.locator(".seat-card").count()) === 6);
+    check("A matching roster name picks the player", (await page.locator(".seat-card").first().locator("[data-kind=player] input").inputValue()) === "Player 1");
+    const hints = await page.locator(".ti-hint").allInnerTexts();
+    check("Unmatched names show a hint, with hostile text kept literal",
+      hints.length === 5 && hints.some((t) => t.includes("<img")) && (await page.locator("main img[src=x]").count()) === 0, JSON.stringify(hints));
+    check("window.__xss is undefined after the file fill", (await page.evaluate(() => window.__xss)) === undefined);
+    check("The scores button shows for a file named like TI Assistant's download", await page.locator("#ti-scores").isVisible());
+    check("The first factions are filled in", (await page.locator(".seat-card").first().locator("[data-kind=faction] input").inputValue()).includes("Jol-Nar"));
+    await page.reload();
+    await page.waitForSelector("#gform");
+    await upload("export.json", ARCHIVED_EXPORT);
+    await page.waitForFunction(() => document.querySelector("#f-date")?.value === "2026-04-11");
+    check("A file with another name has no scores button", !(await page.locator("#ti-scores").isVisible()));
+    await upload("bad.json", { nothing: true });
+    await page.waitForSelector("#form-err:not([hidden])");
+    check("A file that isn't a TI Assistant game gets a plain error", /doesn't look like a TI Assistant game file/.test(await page.locator("#form-err").innerText()));
+    await go("/games/new"); // leave the draft behind
+    await page.evaluate(() => localStorage.clear());
   });
 
   await step("Hostile link", async () => {
