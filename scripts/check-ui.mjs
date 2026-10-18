@@ -86,6 +86,14 @@ async function run() {
   }, [path, init]);
   const post = (path, body) => apiJson(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
+  // Types into a seat's player or faction typeahead and picks the first match.
+  const pick = async (card, kind, text) => {
+    const input = card.locator(`.combo[data-kind=${kind}] input`);
+    await input.click();
+    await input.fill(text);
+    await input.press("Enter");
+  };
+
   // ── Flows ───
   await step("Rules search", async () => {
     await go("/rules");
@@ -147,12 +155,6 @@ async function run() {
     // The form starts with six seats; three is the minimum.
     for (let i = 0; i < 3; i++) await page.locator("[data-rm]:visible").first().click();
     check("Form has 3 seats", (await page.locator(".seat-card").count()) === 3);
-    const pick = async (card, kind, text) => {
-      const input = card.locator(`.combo[data-kind=${kind}] input`);
-      await input.click();
-      await input.fill(text);
-      await input.press("Enter");
-    };
     const names = ["UI Admin", "Guest One", XSS_NAME];
     const factions = ["Arborec", "Hacan", "Federation of Sol"];
     for (let i = 0; i < 3; i++) {
@@ -182,6 +184,45 @@ async function run() {
     check("Every .bar-fill has a width", widths.length > 0 && widths.every((w) => w !== ""), JSON.stringify(widths));
   });
 
+  let memGameId = null;
+  await step("Log a game from memory", async () => {
+    await go("/games/new");
+    for (let i = 0; i < 3; i++) await page.locator("[data-rm]:visible").first().click();
+    await page.locator("label.tog", { hasText: "from memory" }).click();
+    await page.waitForSelector("#f-prec");
+    check("Points start as ?", (await page.locator(".stepnum").allInnerTexts()).slice(1).every((t) => t === "?"));
+    await page.selectOption("#f-prec", "month");
+    check("The date input becomes a month input", (await page.locator("#f-date").getAttribute("type")) === "month");
+    await page.fill("#f-date", "2024-07");
+    const names = ["UI Admin", "Guest One", XSS_NAME];
+    for (let i = 0; i < 3; i++) await pick(page.locator(".seat-card").nth(i), "player", names[i]);
+    await pick(page.locator(".seat-card").nth(0), "faction", "Arborec");
+    await pick(page.locator(".seat-card").nth(1), "faction", "Hacan"); // seat 3 keeps no faction
+    for (let k = 0; k < 4; k++) await page.locator(".seat-card").nth(0).locator('.step[data-d="1"]').click(); // ? -> 0, 1, 2, 3
+    check("Seat 1 points step from ? to 3", (await page.locator(".seat-card").nth(0).locator(".stepnum").innerText()) === "3");
+    await page.locator(".seat-card").nth(1).locator("label.radio", { hasText: "Won" }).click();
+    await page.click("#save");
+    await page.waitForURL(/\/games\/\d+$/, { timeout: 10000 }).catch(async (e) => { throw new Error(`${e.message.split("\n")[0]} (form says: ${await page.locator("#form-err").innerText()})`); });
+    memGameId = new URL(page.url()).pathname.split("/").pop();
+    await page.waitForSelector(".gseat");
+    check("Game page date reads July 2024", (await page.locator("h1.gtitle").innerText()).trim() === "July 2024", await page.locator("h1.gtitle").innerText());
+    const scores = await page.locator(".gscore").allInnerTexts();
+    check("Unknown points show as ?", scores.filter((t) => t === "?").length === 2 && scores.includes("3"), JSON.stringify(scores));
+    check("The winner is the seat that was picked, not the top score", (await page.locator(".gseat.is-winner .gplayer").innerText()).startsWith("Guest One"));
+    check("The page says From memory", (await page.locator(".from-memory").innerText()).trim() === "From memory.");
+    check("The seat without a faction says it wasn't remembered", (await page.locator(".gfaction", { hasText: "Faction not remembered" }).count()) === 1);
+    await go("/games");
+    const row = await page.locator(".drow", { hasText: "Guest One won as The Emirates of Hacan" }).first().innerText();
+    check("The list row names the month and shows only the known score", row.includes("Jul") && row.includes("Hacan, 3\n"), row);
+  });
+
+  await step("Stats mention memory", async () => {
+    await go("/games/stats");
+    await page.waitForSelector(".bar-fill", { timeout: 10000 });
+    check("Stats say how many games were logged from memory",
+      (await page.locator("#memory-note").innerText()).trim() === "1 of these was logged from memory, so some scores and factions are missing.");
+  });
+
   await step("Hostile link", async () => {
     await go(`/games/${gameId}/edit`);
     await page.fill("#f-ti", "https://evil.example/x");
@@ -195,7 +236,7 @@ async function run() {
   // ── Layout pass ───
   const routes = [
     "/rules", "/rules?q=retreat", "/rules/R_movement", mapUrl(), mapUrl("&view=art"), "/about",
-    "/games", "/games/stats", "/games/new", "/games/me", "/games/admin", `/games/${gameId}`,
+    "/games", "/games/stats", "/games/new", "/games/me", "/games/admin", `/games/${gameId}`, `/games/${memGameId}`,
   ];
   for (const vp of [PHONE, DESKTOP]) {
     for (const scheme of ["dark", "light"]) {

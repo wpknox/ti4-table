@@ -398,6 +398,58 @@ async function run() {
   check("Admin revert of the pre-finish revision restores planned",
     r.status === 200 && back?.status === "planned" && back.seats.every((st) => st.faction === null));
 
+  // Games logged from memory
+  const mem = (over, mutate) => {
+    const b = gameBody(pIds, { from_memory: true, played_on: "2024-07-01", date_precision: "month", ...over });
+    mutate?.(b);
+    return b;
+  };
+  const noPoints = (b) => b.seats.forEach((st) => { st.points = null; });
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({}, (b) => { noPoints(b); b.seats[1].faction = null; }) });
+  const M1 = r.data?.id;
+  check("From memory with null points and a null faction -> 201", r.status === 201 && Number.isInteger(M1), `${r.status} ${JSON.stringify(r.data)}`);
+  const mg = (await api("GET", `/api/games/${M1}`, { cookie: e1.cookie })).data?.game;
+  check("The from-memory game reads back with from_memory, month precision and null points",
+    mg?.from_memory === true && mg.date_precision === "month" && mg.played_on === "2024-07-01" &&
+    mg.seats.every((st) => st.points === null) && mg.seats.filter((st) => st.is_winner).length === 1 && mg.seats.some((st) => st.faction === null));
+  const live = gameBody(pIds);
+  noPoints(live);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: live });
+  check("A live game with null points -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({ status: "planned", played_on: daysFromNow(14), date_precision: "day" }) });
+  check("From memory + planned -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({ played_on: "2024-07-15" }) });
+  check("Month precision with played_on 2024-07-15 -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({ played_on: "2024-01-01", date_precision: "year" }) });
+  check("Year precision with 2024-01-01 -> 201", r.status === 201, `${r.status} ${JSON.stringify(r.data)}`);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({ played_on: "2024-07-01", date_precision: "year" }) });
+  check("Year precision with 2024-07-01 -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody(pIds, { date_precision: "month", played_on: "2024-07-01" }) });
+  check("Month precision without from_memory -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({}, (b) => { b.seats.forEach((st) => { st.is_winner = false; }); }) });
+  check("From memory with no winner -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({}, (b) => { b.seats[1].is_winner = true; }) });
+  check("From memory with two winners -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({ date_precision: "decade" }) });
+  check("An unknown date_precision -> 400", r.status === 400, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({}, (b) => { b.seats[1].points = 12; b.seats[0].points = 3; }) });
+  check("From memory: a seat above the winner's points is allowed -> 201", r.status === 201, r.status);
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: mem({}, (b) => { b.seats[1].points = 31; }) });
+  check("From memory: points above 30 -> 400", r.status === 400, r.status);
+  const memFull = await api("GET", "/api/games?full=1", { cookie: reader.cookie });
+  check("full=1 includes the from-memory game with its fields", memFull.data.games.some((g) => g.id === M1 && g.from_memory === true && g.date_precision === "month"));
+  // Edit it to day precision with scores, then revert to the from-memory snapshot.
+  r = await api("PUT", `/api/games/${M1}`, { cookie: e1.cookie, body: gameBody(pIds, { played_on: today }) });
+  const edited = (await api("GET", `/api/games/${M1}`, { cookie: e1.cookie })).data?.game;
+  check("Editing the game to a live one clears from_memory", r.status === 200 && edited.from_memory === false && edited.date_precision === "day" && edited.seats[0].points === 10);
+  const mrevs = await api("GET", `/api/admin/games/${M1}/revisions`, { cookie: admin.cookie });
+  const memRev = mrevs.data?.revisions?.[0];
+  check("The revision snapshot records from_memory and date_precision", memRev?.data?.game?.from_memory === 1 && memRev.data.game.date_precision === "month");
+  r = await api("POST", `/api/admin/games/${M1}/revert`, { cookie: admin.cookie, body: { revision_id: memRev?.id } });
+  const reverted = (await api("GET", `/api/games/${M1}`, { cookie: e1.cookie })).data?.game;
+  check("A revert restores from_memory, month precision and null points",
+    r.status === 200 && reverted.from_memory === true && reverted.date_precision === "month" && reverted.played_on === "2024-07-01" && reverted.seats.every((st) => st.points === null));
+
   // Roles
   r = await api("PATCH", `/api/admin/players/${e3.id}`, { cookie: admin.cookie, body: { role: "none" } });
   check("Admin sets Ed Three's role to none", r.status === 200, r.status);

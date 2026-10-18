@@ -11,7 +11,7 @@ import { get, post, del, currentPlayer, ApiError } from "./api.js";
 import { factionName } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
 import * as S from "./stats.js";
-import { dayShort, yearOf, dayLong, expansionsText, safeTiLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
+import { dayShortP, yearOf, dayLongP, expansionsText, safeTiLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
 import { renderAdmin, renderHistory } from "./admin.js";
 
@@ -73,7 +73,8 @@ export function guard(env, fn) {
 
 // ── List ───────────────────────────────────────────────────────────────────
 
-const scoreLine = (g) => g.seats.map((s) => s.points).sort((a, b) => b - a).join("–");
+// Unknown scores (a game logged from memory) are left out; no known scores, no line.
+const scoreLine = (g) => g.seats.map((s) => s.points).filter((p) => p != null).sort((a, b) => b - a).join("–");
 
 // The TI Assistant link sits beside the row link, not inside it (a link can't hold a link).
 function tiLink(g) {
@@ -81,13 +82,22 @@ function tiLink(g) {
   return `<a class="ti-link" href="${esc(g.ti_assistant_url)}" target="_blank" rel="noopener noreferrer">TI Assistant</a>`;
 }
 
+// "Name won as Faction, 10–7", leaving out the parts a game logged from memory doesn't know.
+function winnerLine(g, w) {
+  if (!w) return "No winner recorded";
+  const as = w.faction ? ` as ${factionName(w.faction)}` : "";
+  const score = scoreLine(g);
+  const line = w.player_name + " won" + as + (score ? ", " + score : "");
+  return sym(w.faction, "win") + esc(line);
+}
+
 function rowHtml(g) {
   const w = g.seats.find((s) => s.is_winner);
   const yr = yearOf(g.played_on) !== new Date().getFullYear() ? `<span class="yr">${yearOf(g.played_on)}</span>` : "";
   return `<li class="drow"><a class="grow" href="/games/${g.id}">
-    <span class="gdate">${esc(dayShort(g.played_on))}${yr}</span>
+    <span class="gdate">${esc(dayShortP(g.played_on, g.date_precision))}${yr}</span>
     <span class="gmain">
-      <span class="gwho">${w ? `${sym(w.faction, "win")}${esc(w.player_name)} won as ${esc(factionName(w.faction))}, ${esc(scoreLine(g))}` : "No winner recorded"}</span>
+      <span class="gwho">${winnerLine(g, w)}</span>
       <span class="gmeta">${esc(plural(g.seats.length, "player"))}, ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}</span>
     </span></a>${tiLink(g)}</li>`;
 }
@@ -96,7 +106,7 @@ function plannedRowHtml(g) {
   const yr = yearOf(g.played_on) !== new Date().getFullYear() ? `<span class="yr">${yearOf(g.played_on)}</span>` : "";
   const map = g.map_string ? `<span class="gmeta">Map chosen, ${esc(plural(g.seats.length, "seat"))}</span>` : "";
   return `<li class="drow"><a class="grow" href="/games/${g.id}">
-    <span class="gdate">${esc(dayShort(g.played_on))}${yr}</span>
+    <span class="gdate">${esc(dayShortP(g.played_on))}${yr}</span>
     <span class="gmain">
       <span class="gwho">${esc(plural(g.seats.length, "player"))} · planned</span>${map}
     </span></a>${tiLink(g)}</li>`;
@@ -150,10 +160,11 @@ function renderList(env) {
 // ── One game ───────────────────────────────────────────────────────────────
 
 function finishedSeatHtml(s) {
+  const known = s.points != null;
   return `<li class="gseat${s.is_winner ? " is-winner" : ""}">
-    <span class="gscore" aria-label="${esc(s.points)} points">${esc(s.points)}</span>
+    <span class="gscore" aria-label="${known ? `${esc(s.points)} points` : "Points not remembered"}">${known ? esc(s.points) : "?"}</span>
     <span class="gseat-body">
-      <span class="gfaction">${sym(s.faction)}${esc(factionName(s.faction))}</span>
+      <span class="gfaction${s.faction ? "" : " unpicked"}">${sym(s.faction)}${s.faction ? esc(factionName(s.faction)) : "Faction not remembered"}</span>
       <span class="gplayer">${esc(seatDetail(s))}</span>
     </span></li>`;
 }
@@ -172,18 +183,21 @@ function plannedSeatHtml(s, i) {
 function seatsHtml(g) {
   if (g.status === "planned") return g.seats.map(plannedSeatHtml).join("");
   // Finishing order: winner first, then by points (the API returns seat order).
-  return [...g.seats].sort((a, b) => b.is_winner - a.is_winner || b.points - a.points).map(finishedSeatHtml).join("");
+  return [...g.seats].sort((a, b) => b.is_winner - a.is_winner || (b.points ?? -1) - (a.points ?? -1)).map(finishedSeatHtml).join("");
 }
 
 function gameHeadHtml(g) {
   const count = esc(plural(g.seats.length, "player"));
   if (g.status === "planned") {
-    return `<h1 class="gtitle">Planned for ${esc(dayLong(g.played_on))}</h1>
+    return `<h1 class="gtitle">Planned for ${esc(dayLongP(g.played_on))}</h1>
       <p class="gsub">${count}, played to ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}. This game hasn't been played yet. Stats will count it once results are in.</p>`;
   }
   const winner = g.seats.find((s) => s.is_winner);
-  return `<h1 class="gtitle">${esc(dayLong(g.played_on))}</h1>
-    <p class="gsub">${winner ? `${esc(winner.player_name)} won as ${esc(factionName(winner.faction))}. ` : ""}${count}, played to ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}.</p>`;
+  const as = winner?.faction ? ` as ${factionName(winner.faction)}` : "";
+  const who = winner ? esc(winner.player_name + " won" + as) + ". " : "";
+  const note = g.from_memory ? ' <span class="from-memory">From memory.</span>' : "";
+  return `<h1 class="gtitle">${esc(dayLongP(g.played_on, g.date_precision))}</h1>
+    <p class="gsub">${who}${count}, played to ${esc(g.points_to_win)} points, ${esc(expansionsText(g))}.${note}</p>`;
 }
 
 // Draws the game's map under the seats, once the page is up. If the map string
@@ -208,7 +222,7 @@ function renderGame(env, id) {
   return guard(env, async () => {
     const { game: g } = await get(`/api/games/${id}`);
     if (ctx.stale()) return;
-    document.title = `${g.status === "planned" ? "Planned game" : "Game"} of ${dayLong(g.played_on)} · TI4 Table`;
+    document.title = `${g.status === "planned" ? "Planned game" : "Game"} of ${dayLongP(g.played_on, g.date_precision)} · TI4 Table`;
     const edited = g.updated_by?.id !== g.created_by?.id || g.updated_at !== g.created_at;
     const links = [];
     if (safeTiLink(g.ti_assistant_url))
@@ -273,7 +287,8 @@ function headToHeadHtml(p, other, h) {
   if (!h.together) return `<p class="muted">${esc(p.name)} and ${esc(other.name)} haven't played together yet.</p>`;
   let level = "";
   if (h.tied) level = `, and ${h.tied} ${h.tied === 1 ? "was" : "were"} level`;
-  return `<p>${esc(p.name)} and ${esc(other.name)} sat down together in ${esc(plural(h.together, "game"))}. ${esc(p.name)} finished higher in ${h.aAhead}, ${esc(other.name)} in ${h.bAhead}${level}.</p>`;
+  const unknown = h.unknown ? ` ${esc(plural(h.unknown, "game"))} left out because a score wasn't remembered.` : "";
+  return `<p>${esc(p.name)} and ${esc(other.name)} sat down together in ${esc(plural(h.together, "game"))}. ${esc(p.name)} finished higher in ${h.aAhead}, ${esc(other.name)} in ${h.bAhead}${level}.${unknown}</p>`;
 }
 
 function unplayedHtml(p, unplayed) {
@@ -429,6 +444,11 @@ export function codeBlock(code, shareText) {
 const pct = (r) => `${Math.round(r * 100)}%`;
 const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
 
+function memoryNote(n) {
+  if (!n) return "";
+  return `<p class="gsub" id="memory-note">${n} of these ${n === 1 ? "was" : "were"} logged from memory, so some scores and factions are missing.</p>`;
+}
+
 function renderStats(env) {
   const { main, ctx, me, url } = env;
   return guard(env, async () => {
@@ -447,10 +467,12 @@ function renderStats(env) {
 
     const facts = S.byFaction(games);
     const seat = S.seatEffects(games);
+    const memory = games.filter((g) => g.from_memory).length;
     main.innerHTML = `<div class="games-page g-stats">
       ${tabs("stats", me)}
       <h1>Stats</h1>
       <p class="gsub">${esc(plural(games.length, "game"))} logged.</p>
+      ${memoryNote(memory)}
 
       <section><h2>Wins</h2>
         <ol class="wins">${players
@@ -491,14 +513,14 @@ function renderStats(env) {
     const out = $("#who-out", main);
     const draw = (p, vsId) => {
       if (!p) { out.replaceChildren(); return; }
-      const avg = S.averagePoints(games, p.id);
+      const { avg, n: scored } = S.averagePoints(games, p.id);
       const unplayed = S.unplayedFactions(games, p.id);
       const others = players.filter((o) => o.id !== p.id);
       const h = vsId ? S.headToHead(games, p.id, vsId) : null;
       const other = others.find((o) => o.id === vsId);
       out.innerHTML = `<div class="pstats">
           <div><span class="bignum">${p.wins}</span><span class="muted"> ${p.wins === 1 ? "win" : "wins"} from ${esc(plural(p.games, "game"))}</span></div>
-          <div><span class="bignum">${avg == null ? "–" : (Math.round(avg * 10) / 10)}</span><span class="muted"> points on average</span></div>
+          <div><span class="bignum">${avg == null ? "–" : (Math.round(avg * 10) / 10)}</span><span class="muted"> points on average${scored < p.games ? ` (${esc(plural(scored, "known score"))})` : ""}</span></div>
         </div>
         <h3>Against another player</h3>
         <label for="vs" class="visually-hidden">Compare with</label>
@@ -521,6 +543,6 @@ function renderStats(env) {
 
 function seatTable(seat) {
   return `<table class="metrics"><thead><tr><th scope="col">Seat</th><th scope="col">Games</th><th scope="col">Wins</th><th scope="col">Average points</th></tr></thead><tbody>${seat.rows
-    .map((r) => `<tr><th scope="row">${r.seat}</th><td>${r.games}</td><td>${r.wins} (${pct(r.rate)})</td><td>${Math.round(r.avgPoints * 10) / 10}</td></tr>`)
+    .map((r) => `<tr><th scope="row">${r.seat}</th><td>${r.games}</td><td>${r.wins} (${pct(r.rate)})</td><td>${r.avgPoints == null ? "–" : Math.round(r.avgPoints * 10) / 10}</td></tr>`)
     .join("")}</tbody></table>`;
 }

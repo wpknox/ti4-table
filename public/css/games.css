@@ -124,7 +124,7 @@ a.btn-primary { color: var(--void); }
 }
 .g-form textarea { padding: 10px 12px; resize: vertical; line-height: 1.4; }
 .g-form input:focus-visible, .g-form textarea:focus-visible, .g-form select:focus-visible { border-color: var(--influence); outline-offset: 0; }
-.g-form input[type=date] { min-width: 11rem; }
+.g-form input[type=date], .g-form input[type=month] { min-width: 11rem; }
 .check-map { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
 .form-err { padding: 10px 12px; border: 1px solid var(--danger); border-radius: var(--radius-s); scroll-margin-top: 16px; }
 .tie { margin: 8px 0; font-weight: 600; }
@@ -148,7 +148,10 @@ a.btn-primary { color: var(--void); }
 .seat-card legend { padding: 0 6px; font: 700 var(--t-l)/1 var(--display); font-stretch: 120%; color: var(--resource); }
 .seat-card.is-winner { border-color: var(--resource); }
 .seat-card input:not([type=checkbox]):not([type=radio]), .seat-card select { background: var(--void); }
-.seat-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.seat-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-top: 4px; }
+.seatpts { display: inline-flex; align-items: center; gap: 4px 8px; }
+.unknown-pts[hidden] { display: none; }
+.from-memory { color: var(--dust); }
 .seat-card.is-winner .stepnum { color: transparent; -webkit-text-stroke: 1.5px var(--resource); }
 .winner-tag { font: 700 var(--t-s)/1 var(--display); font-stretch: 115%; color: var(--resource); padding: 0 6px; }
 .field.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

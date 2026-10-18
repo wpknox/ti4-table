@@ -13,6 +13,16 @@ export const dayShort = (s) => { const [, m, d] = parts(s); return `${d} ${MONTH
 export const yearOf = (s) => parts(s)[0];
 export const dayLong = (s) => { const [y, m, d] = parts(s); return `${d} ${LONG[m - 1]} ${y}`; };
 
+// Games logged from memory may know only the month or the year (date_precision).
+export const dayShortP = (s, precision = "day") => {
+  if (precision === "month") return MONTHS[parts(s)[1] - 1];
+  return precision === "year" ? "—" : dayShort(s);
+};
+export const dayLongP = (s, precision = "day") => {
+  if (precision === "month") { const [y, m] = parts(s); return `${LONG[m - 1]} ${y}`; }
+  return precision === "year" ? String(yearOf(s)) : dayLong(s);
+};
+
 export const todayLocal = (d = new Date()) => {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;

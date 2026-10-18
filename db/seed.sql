@@ -1,17 +1,21 @@
 -- Local-only fake data for development and for checking public/js/games/stats.js.
 -- Never apply this to the production database.
 --
--- Hand count (live, finished games only; game 5 is soft-deleted and game 6 is planned, so neither counts):
---   Live games: 4 (ids 1 to 4). Deleted: 1 (id 5). Planned: 1 (id 6, players A, B and E, no factions).
---   Wins per player: Player A 2 (games 1, 3), Player B 1 (game 2), Player C 1 (game 4),
+-- Hand count (finished games only; game 5 is soft-deleted and game 6 is planned, so neither counts):
+--   Counted games: 6 (ids 1 to 4, 7 and 8). Deleted: 1 (id 5). Planned: 1 (id 6, players A, B and E, no factions).
+--   Games 7 and 8 were logged from memory (see the end of this file): some points and factions are unknown.
+--   Wins per player: Player A 2 (games 1, 3), Player B 2 (games 2, 8), Player C 2 (games 4, 7),
 --                    Players D, E and F 0.
---   Games per player: A 4, B 3, C 4, D 2, E 3, F 3.
+--   Games per player: A 6, B 4, C 5, D 3, E 4, F 5.
 --   Games per faction: each of these is 1:
 --     F_arborec F_hacan F_sol F_muaat F_xxcha F_yssaril F_mahact F_naalu F_keleres
 --     F_firmament F_ul F_letnev F_jol_nar F_nekro F_saar F_winnu F_mentak F_yin F_creuss
+--     F_vuilraith F_naaz_rokha F_ral_nel F_norr F_bastion F_deepwrought F_rebellion
+--   (26 factions). Seats with no faction (game 7's Player D) count for no faction.
 --   All other factions are 0, including the deleted game's F_empyrean, F_argent,
 --   F_lizix and F_nomad.
---   Expansions: games 1 and 3 are PoK only, game 2 is PoK + Thunder's Edge, game 4 is base only.
+--   Points known: Player A's known points are games 1 to 4 only (10, 9, 10, 8): average 9.25 over 4 scores.
+--   Expansions: games 1, 3, 7 are PoK only, games 2 and 8 are PoK + Thunder's Edge, game 4 is base only.
 
 INSERT INTO players (id, name, role) VALUES
   (1, 'Player A', 'none'), (2, 'Player B', 'none'), (3, 'Player C', 'none'),
@@ -61,3 +65,23 @@ INSERT INTO seats (game_id, player_id, faction, color, seat_index, points, is_wi
   (6, 1, NULL, NULL, 0, 0, 0, 0),
   (6, 2, NULL, NULL, 1, 0, 0, 0),
   (6, 5, NULL, NULL, 2, 0, 0, 0);
+
+-- Games logged from memory. Both finished, so stats count them.
+-- Game 7: July 2024 (month precision), no points at all, seat 4 (Player D) has no faction.
+--         Players A, C, D, F. Winner Player C.
+-- Game 8: 2023 (year precision), points known for the winner (Player B, 10) and Player E (7) only.
+--         Players B, E, F, A. Factions: F_norr, F_bastion, F_deepwrought, F_rebellion. Winner Player B.
+INSERT INTO games (id, client_id, played_on, date_precision, from_memory, points_to_win, pok, te, notes, created_by, updated_by) VALUES
+  (7, 'seed-game-0007', '2024-07-01', 'month', 1, 10, 1, 0, 'Remembered at the table.', 1, 1),
+  (8, 'seed-game-0008', '2023-01-01', 'year', 1, 10, 1, 1, '', 2, 2);
+
+INSERT INTO seats (game_id, player_id, faction, color, seat_index, points, is_winner, is_speaker_start) VALUES
+  (7, 3, 'F_vuilraith', NULL, NULL, NULL, 1, 0),
+  (7, 1, 'F_naaz_rokha', NULL, NULL, NULL, 0, 0),
+  (7, 6, 'F_ral_nel', NULL, NULL, NULL, 0, 0),
+  (7, 4, NULL, NULL, NULL, NULL, 0, 0),
+
+  (8, 2, 'F_norr', NULL, NULL, 10, 1, 0),
+  (8, 5, 'F_bastion', NULL, NULL, 7, 0, 0),
+  (8, 6, 'F_deepwrought', NULL, NULL, NULL, 0, 0),
+  (8, 1, 'F_rebellion', NULL, NULL, NULL, 0, 0);

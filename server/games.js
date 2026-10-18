@@ -53,7 +53,7 @@ export const revisionInsert = (db, gameId, editorId) =>
      SELECT g.id,
             json_object(
               'game', json_object('status', g.status, 'played_on', g.played_on, 'points_to_win', g.points_to_win,
-                'pok', g.pok, 'te', g.te, 'map_string', g.map_string, 'ti_assistant_url', g.ti_assistant_url,
+                'pok', g.pok, 'te', g.te, 'from_memory', g.from_memory, 'date_precision', g.date_precision, 'map_string', g.map_string, 'ti_assistant_url', g.ti_assistant_url,
                 'notes', g.notes, 'created_by', g.created_by, 'updated_by', g.updated_by,
                 'updated_at', g.updated_at, 'deleted_at', g.deleted_at),
               'seats', json((SELECT json_group_array(json_object('player_id', s.player_id, 'faction', s.faction,
@@ -78,7 +78,7 @@ function attach(games, seatRows) {
   const by = new Map(games.map((g) => [g.id, []]));
   for (const s of seatRows) by.get(s.game_id)?.push(seatOut(s));
   return games.map((g) => ({
-    id: g.id, status: g.status, played_on: g.played_on, points_to_win: g.points_to_win, pok: !!g.pok, te: !!g.te,
+    id: g.id, status: g.status, played_on: g.played_on, date_precision: g.date_precision, from_memory: !!g.from_memory, points_to_win: g.points_to_win, pok: !!g.pok, te: !!g.te,
     map_string: g.map_string, ti_assistant_url: g.ti_assistant_url,
     seats: by.get(g.id),
   }));
@@ -165,7 +165,7 @@ export async function getGame(ctx, id) {
   const who = (pid) => ({ id: pid, name: names.results.find((p) => p.id === pid)?.name ?? null });
   return json({
     game: {
-      id: game.id, status: game.status, played_on: game.played_on, points_to_win: game.points_to_win,
+      id: game.id, status: game.status, played_on: game.played_on, date_precision: game.date_precision, from_memory: !!game.from_memory, points_to_win: game.points_to_win,
       pok: !!game.pok, te: !!game.te, map_string: game.map_string, ti_assistant_url: game.ti_assistant_url,
       notes: game.notes, created_by: who(game.created_by), updated_by: who(game.updated_by),
       created_at: game.created_at, updated_at: game.updated_at, deleted_at: game.deleted_at,
@@ -193,9 +193,9 @@ export async function createGame(ctx) {
   try {
     await db.batch([
       db.prepare(
-        `INSERT INTO games (client_id, status, played_on, points_to_win, pok, te, map_string, ti_assistant_url, notes, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(g.client_id, g.status, g.played_on, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes, me, me),
+        `INSERT INTO games (client_id, status, played_on, date_precision, from_memory, points_to_win, pok, te, map_string, ti_assistant_url, notes, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(g.client_id, g.status, g.played_on, g.date_precision, g.from_memory ? 1 : 0, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes, me, me),
       ...g.seats.map((s) => seatInsert(db, true, g.client_id, s)),
     ]);
   } catch (err) {
@@ -221,9 +221,9 @@ export async function updateGame(ctx, id) {
   await db.batch([
     revisionInsert(db, id, ctx.player.id),
     db.prepare(
-      `UPDATE games SET status = ?, played_on = ?, points_to_win = ?, pok = ?, te = ?, map_string = ?, ti_assistant_url = ?,
+      `UPDATE games SET status = ?, played_on = ?, date_precision = ?, from_memory = ?, points_to_win = ?, pok = ?, te = ?, map_string = ?, ti_assistant_url = ?,
               notes = ?, updated_by = ?, updated_at = ? WHERE id = ?`
-    ).bind(g.status, g.played_on, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes,
+    ).bind(g.status, g.played_on, g.date_precision, g.from_memory ? 1 : 0, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes,
       ctx.player.id, nowIso(), id),
     db.prepare("DELETE FROM seats WHERE game_id = ?").bind(id),
     ...g.seats.map((s) => seatInsert(db, false, id, s)),

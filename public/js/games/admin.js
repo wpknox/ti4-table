@@ -6,7 +6,7 @@ import { navigate } from "../router.js";
 import { hydrateSymbols } from "../factions.js";
 import { get, post, patch, del } from "./api.js";
 import { factionName } from "./names.js";
-import { tabs, dayShort, dayLong, errorBlock, sym } from "./ui.js";
+import { tabs, dayShortP, dayLong, dayLongP, errorBlock, sym } from "./ui.js";
 import { guard, codeBlock } from "./view.js";
 
 const notAdmin = (main, me) => {
@@ -136,7 +136,7 @@ async function loadDeleted(env, box) {
     if (env.ctx.stale()) return;
     box.innerHTML = found.length
       ? `<ul class="glist">${found
-          .map((g) => `<li class="drow"><a class="grow" href="/games/${g.id}"><span class="gdate">${esc(dayShort(g.played_on))}</span><span class="gmain"><span class="gwho">${esc(g.seats.find((s) => s.is_winner)?.player_name ?? "No winner")} won as ${esc(factionName(g.seats.find((s) => s.is_winner)?.faction))}</span><span class="gmeta">Logged by ${esc(g.created_by?.name ?? "someone")}</span></span></a>
+          .map((g) => `<li class="drow"><a class="grow" href="/games/${g.id}"><span class="gdate">${esc(dayShortP(g.played_on, g.date_precision))}</span><span class="gmain"><span class="gwho">${esc(g.seats.find((s) => s.is_winner)?.player_name ?? "No winner")} won as ${esc(factionName(g.seats.find((s) => s.is_winner)?.faction))}</span><span class="gmeta">Logged by ${esc(g.created_by?.name ?? "someone")}</span></span></a>
             <button type="button" class="btn" data-restore="${g.id}">Restore</button></li>`)
           .join("")}</ul>`
       : `<p class="muted">No deleted games.</p>`;
@@ -171,12 +171,12 @@ export function renderHistory(env, id) {
     const name = (pid) => players.find((p) => p.id === pid)?.name ?? `Player ${pid}`;
     const card = (r) => {
       const d = r.data.game;
-      const seats = [...r.data.seats].sort((a, b) => b.points - a.points);
+      const seats = [...r.data.seats].sort((a, b) => (b.points ?? -1) - (a.points ?? -1));
       return `<li data-rev="${r.id}">
         <h2>The version before ${esc(r.edited_by.name)}'s change</h2>
         <p class="muted">Changed on ${esc(dayLong(r.edited_at))}${d.deleted_at ? ", when the game was deleted" : ""}.</p>
-        <p>${esc(dayLong(d.played_on))}, played to ${esc(d.points_to_win)} points.</p>
-        <ul class="revseats">${seats.map((s) => `<li>${sym(s.faction)}${esc(factionName(s.faction))}, ${esc(name(s.player_id))}, <strong>${esc(s.points)}</strong>${s.is_winner ? ", winner" : ""}</li>`).join("")}</ul>
+        <p>${esc(dayLongP(d.played_on, d.date_precision))}, played to ${esc(d.points_to_win)} points.</p>
+        <ul class="revseats">${seats.map((s) => `<li>${sym(s.faction)}${esc(factionName(s.faction))}, ${esc(name(s.player_id))}, <strong>${esc(s.points ?? "?")}</strong>${s.is_winner ? ", winner" : ""}</li>`).join("")}</ul>
         ${d.notes ? `<p class="gnotes">${esc(d.notes)}</p>` : ""}
         <button type="button" class="btn" data-revert="${r.id}">Revert to this version</button>
       </li>`;
@@ -184,7 +184,7 @@ export function renderHistory(env, id) {
     main.innerHTML = `<div class="games-page g-admin g-history">
       ${tabs("admin", me)}
       <h1>History</h1>
-      <p class="muted">Game of ${esc(dayLong(game.played_on))}. <a href="/games/${id}">Back to the game</a></p>
+      <p class="muted">Game of ${esc(dayLongP(game.played_on, game.date_precision))}. <a href="/games/${id}">Back to the game</a></p>
       <p class="error" id="hist-err" role="alert" hidden></p>
       ${revisions.length ? `<ol class="revs">${revisions.map(card).join("")}</ol>` : `<p class="g-empty">This game hasn't been edited.</p>`}
     </div>`;

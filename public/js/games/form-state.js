@@ -7,12 +7,16 @@ import { LIMITS } from "./validate.js";
 
 export const MIN_SEATS = LIMITS.minSeats, MAX_SEATS = LIMITS.maxSeats, START_SEATS = 6;
 
+export const PRECISIONS = ["day", "month", "year"];
+
 let keySeq = 0;
 export const newSeat = () => ({ key: `s${++keySeq}`, player_id: null, player_name: "", faction: "", color: "", seat_index: null, points: 0 });
 
 export const blank = () => ({
   client_id: crypto.randomUUID(),
   played_on: todayLocal(),
+  from_memory: false, // logging an old game: the date may be a month or year, and points may be unknown
+  date_precision: "day",
   points_to_win: 10,
   pok: true,
   te: false,
@@ -26,8 +30,10 @@ export const blank = () => ({
 
 // ── Winner ─────────────────────────────────────────────────────────────────
 
-// { key } when decided, { tied: [keys], points } when the top score is shared.
+// { key } when decided ({ key: null } from memory until one is picked), { tied: [keys], points } when the top score is shared.
 export function pickWinner(st) {
+  // From memory the winner is always picked directly; scores may be unknown.
+  if (st.from_memory) return { key: st.seats.some((s) => s.key === st.winner) ? st.winner : null, manual: true };
   if (st.winner && st.seats.some((s) => s.key === st.winner)) return { key: st.winner, manual: true };
   const top = Math.max(...st.seats.map((s) => s.points));
   const best = st.seats.filter((s) => s.points === top);
@@ -69,7 +75,8 @@ export function fromGame(g) {
   const w = g.seats.findIndex((s) => s.is_winner);
   const sp = g.seats.findIndex((s) => s.is_speaker_start);
   return {
-    client_id: null, played_on: g.played_on, points_to_win: g.points_to_win, pok: g.pok, te: g.te,
+    client_id: null, played_on: g.played_on, from_memory: !!g.from_memory, date_precision: g.date_precision ?? "day",
+    points_to_win: g.points_to_win, pok: g.pok, te: g.te,
     map_string: g.map_string ?? "", ti_assistant_url: g.ti_assistant_url ?? "", notes: g.notes ?? "",
     seats, winner: w >= 0 ? seats[w].key : null, speaker: sp >= 0 ? seats[sp].key : null,
   };
@@ -79,6 +86,7 @@ export function fromGame(g) {
 export function sanitiseDraft(d, fallback) {
   const int = (v, lo, hi, def) => (Number.isInteger(v) && v >= lo && v <= hi ? v : def);
   const str = (v, def = "") => (typeof v === "string" ? v : def);
+  const memory = d.from_memory === true;
   const seats = d.seats.slice(0, MAX_SEATS).map((s) => ({
     key: `s${++keySeq}`,
     player_id: Number.isInteger(s?.player_id) ? s.player_id : null,
@@ -86,7 +94,7 @@ export function sanitiseDraft(d, fallback) {
     faction: FACTION_IDS.includes(s?.faction) ? s.faction : "",
     color: COLORS.includes(s?.color) ? s.color : "",
     seat_index: int(s?.seat_index, 0, MAX_SEATS - 1, null),
-    points: int(s?.points, 0, LIMITS.maxPoints, 0),
+    points: int(s?.points, 0, LIMITS.maxPoints, memory ? null : 0),
   }));
   while (seats.length < MIN_SEATS) seats.push(newSeat());
   // Keys are per session, so a draft remembers winner and speaker by position.
@@ -94,6 +102,7 @@ export function sanitiseDraft(d, fallback) {
   return {
     client_id: str(d.client_id).length >= 8 ? d.client_id : fallback.client_id ?? crypto.randomUUID(),
     played_on: /^\d{4}-\d{2}-\d{2}$/.test(str(d.played_on)) ? d.played_on : fallback.played_on,
+    from_memory: memory, date_precision: PRECISIONS.includes(d.date_precision) ? d.date_precision : "day",
     points_to_win: int(d.points_to_win, LIMITS.minVp, LIMITS.maxVp, 10),
     pok: d.pok !== false, te: d.te === true,
     map_string: str(d.map_string).slice(0, LIMITS.mapString), ti_assistant_url: str(d.ti_assistant_url).slice(0, LIMITS.tiUrl),
@@ -110,6 +119,8 @@ export function toBody(st, { plan, editId }) {
   const body = {
     status: plan ? "planned" : "finished",
     played_on: st.played_on,
+    from_memory: !plan && st.from_memory,
+    date_precision: !plan && st.from_memory ? st.date_precision : "day",
     points_to_win: st.points_to_win,
     pok: st.pok,
     te: st.te,

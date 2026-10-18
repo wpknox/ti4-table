@@ -27,6 +27,7 @@ export function byFaction(games, playerId = null) {
   for (const g of games)
     for (const s of g.seats) {
       if (playerId != null && s.player_id !== playerId) continue;
+      if (!s.faction) continue; // a game logged from memory may not know it
       const f = by.get(s.faction) ?? { faction: s.faction, games: 0, wins: 0 };
       f.games++;
       if (s.is_winner) f.wins++;
@@ -43,15 +44,17 @@ export function unplayedFactions(games, playerId, all = FACTION_IDS) {
   return all.filter((f) => !seen.has(f));
 }
 
-// Games where both sat down. aAhead counts games a scored more than b.
+// Games where both sat down. aAhead counts games a scored more than b. Games
+// where either score is unknown (logged from memory) go in `unknown` instead.
 export function headToHead(games, a, b) {
-  const r = { together: 0, aAhead: 0, bAhead: 0, tied: 0, aWins: 0, bWins: 0 };
+  const r = { together: 0, aAhead: 0, bAhead: 0, tied: 0, unknown: 0, aWins: 0, bWins: 0 };
   for (const g of games) {
     const sa = g.seats.find((s) => s.player_id === a);
     const sb = g.seats.find((s) => s.player_id === b);
     if (!sa || !sb) continue;
     r.together++;
-    if (sa.points > sb.points) r.aAhead++;
+    if (sa.points == null || sb.points == null) r.unknown++;
+    else if (sa.points > sb.points) r.aAhead++;
     else if (sb.points > sa.points) r.bAhead++;
     else r.tied++;
     if (sa.is_winner) r.aWins++;
@@ -60,13 +63,14 @@ export function headToHead(games, a, b) {
   return r;
 }
 
-// Mean final score, or null if the player has no games.
+// Mean of the final scores that are known: { avg, n } with n the scores counted,
+// or { avg: null, n: 0 } if there are none.
 export function averagePoints(games, playerId) {
   let n = 0, sum = 0;
   for (const g of games)
     for (const s of g.seats)
-      if (s.player_id === playerId) { n++; sum += s.points; }
-  return n ? sum / n : null;
+      if (s.player_id === playerId && s.points != null) { n++; sum += s.points; }
+  return { avg: n ? sum / n : null, n };
 }
 
 export const SEAT_EFFECTS_MIN = 20;
@@ -79,14 +83,14 @@ export function seatEffects(games) {
   for (const g of usable)
     for (const s of g.seats) {
       if (s.seat_index == null) continue;
-      const e = by.get(s.seat_index) ?? { seat: s.seat_index + 1, games: 0, wins: 0, points: 0 };
+      const e = by.get(s.seat_index) ?? { seat: s.seat_index + 1, games: 0, wins: 0, points: 0, scored: 0 };
       e.games++;
-      e.points += s.points;
+      if (s.points != null) { e.points += s.points; e.scored++; }
       if (s.is_winner) e.wins++;
       by.set(s.seat_index, e);
     }
   const rows = [...by.values()]
     .sort((a, b) => a.seat - b.seat)
-    .map((e) => ({ seat: e.seat, games: e.games, wins: e.wins, rate: rate(e.wins, e.games), avgPoints: e.points / e.games }));
+    .map((e) => ({ seat: e.seat, games: e.games, wins: e.wins, rate: rate(e.wins, e.games), avgPoints: e.scored ? e.points / e.scored : null }));
   return { enough: usable.length >= SEAT_EFFECTS_MIN, games: usable.length, rows };
 }

@@ -71,6 +71,14 @@ export async function renderForm(env, editId) {
   new Form(env, editId, draftKey, st, players.filter((p) => !p.archived), game, { ...mode, model }).mount(restored);
 }
 
+// The date input holds only what is known (a month, a year); the state keeps a full
+// YYYY-MM-DD with 01 for the unknown parts. Returns `keep` while the input is incomplete.
+function dateFromInput(precision, value, keep) {
+  if (precision === "month") return /^\d{4}-\d{2}$/.test(value) ? `${value}-01` : keep;
+  if (precision === "year") return /^\d{4}$/.test(value) ? `${value}-01-01` : keep;
+  return value;
+}
+
 // ── The form ───────────────────────────────────────────────────────────────
 
 class Form {
@@ -79,6 +87,9 @@ class Form {
     Object.assign(this, { env, editId, draftKey, st, players, game, saving: false,
       plan: mode.plan, finish: mode.finish, model: mode.model, fixed: !!mode.model, mapSeq: 0 });
   }
+
+  // Logging from memory (only in log mode; plan and finish never use it).
+  get memory() { return this.st.from_memory && !this.plan && !this.finish; }
 
   get title() {
     if (this.finish) return "Enter results";
@@ -112,6 +123,7 @@ class Form {
   // ── Drawing ──
   draw() {
     this.form.innerHTML = formHtml(this);
+    this.bindCombos(); // the old pickers went with the old markup
     this.updateWinner();
     void hydrateSymbols(this.form);
     void this.updateMap();
@@ -138,7 +150,7 @@ class Form {
 
   // Marks the winning seat and shows the tie message. Cheap; no re-render.
   updateWinner() {
-    if (this.plan) return; // nobody has won a game that hasn't been played
+    if (this.plan || this.memory) return; // nobody has won a planned game; from memory the winner is picked by radio
     const w = pickWinner(this.st);
     $$(".seat-card", this.form).forEach((card) => {
       const key = card.dataset.key;
@@ -188,23 +200,46 @@ class Form {
       $(".stepnum", t.closest(".stepper")).textContent = this.st.points_to_win;
     } else {
       const seat = this.seat(key.slice(4));
-      seat.points = Math.min(30, Math.max(0, seat.points + d));
-      $(".stepnum", t.closest(".stepper")).textContent = seat.points;
+      // From memory, stepping down from 0 goes to "unknown" and up from unknown to 0.
+      if (seat.points == null) seat.points = 0;
+      else if (this.memory && seat.points === 0 && d < 0) seat.points = null;
+      else seat.points = Math.min(30, Math.max(0, seat.points + d));
+      this.showPoints(t.closest(".seat-card"), seat);
       this.updateWinner();
     }
     this.persist();
   }
 
-  onClick(e) {
-    const t = e.target.closest("button, input[type=radio]");
-    if (!t) return;
-    if (t.matches(".step")) {
-      this.onStep(t);
+  showPoints(card, seat) {
+    $(".stepnum", card).textContent = seat.points ?? "?";
+    const u = $(".unknown-pts", card);
+    if (u) u.hidden = seat.points == null;
+  }
+
+  // Points and winner controls. Returns true when it handled the click.
+  onScoreClick(t) {
+    if (t.matches(".step")) this.onStep(t);
+    else if (t.matches("[data-unknown]")) {
+      const seat = this.seat(t.dataset.unknown);
+      seat.points = null;
+      this.showPoints(t.closest(".seat-card"), seat);
+      this.persist();
+    } else if (t.matches("input[type=radio][data-f=winner]")) {
+      this.st.winner = t.value;
+      this.persist();
     } else if (t.matches("[data-win]")) {
       this.st.winner = t.dataset.win;
       this.updateWinner();
       this.persist();
-    } else if (t.matches("[data-rm]")) {
+    } else return false;
+    return true;
+  }
+
+  onClick(e) {
+    const t = e.target.closest("button, input[type=radio]");
+    if (!t) return;
+    if (this.onScoreClick(t)) return;
+    if (t.matches("[data-rm]")) {
       this.syncText();
       this.st.seats = this.st.seats.filter((s) => s.key !== t.dataset.rm);
       if (this.st.winner === t.dataset.rm) this.st.winner = null;
@@ -212,7 +247,9 @@ class Form {
       this.redrawSeats();
     } else if (t.id === "add-seat") {
       this.syncText();
-      this.st.seats.push(newSeat());
+      const added = newSeat();
+      if (this.memory) added.points = null; // points start unknown
+      this.st.seats.push(added);
       this.redrawSeats();
       const last = $$(".seat-card", this.form).at(-1);
       $("input", last)?.focus();
@@ -243,7 +280,9 @@ class Form {
   onChange(e) {
     const t = e.target;
     const st = this.st;
-    if (t.id === "f-date") st.played_on = t.value;
+    if (t.id === "f-date") st.played_on = dateFromInput(st.date_precision, t.value, st.played_on);
+    else if (t.id === "f-mem") this.setMemory(t.checked);
+    else if (t.id === "f-prec") this.setPrecision(t.value);
     else if (t.id === "f-pok") st.pok = t.checked;
     else if (t.id === "f-te") st.te = t.checked;
     else if (t.dataset.f === "color") this.seat(t.closest(".seat-card").dataset.key).color = t.value;
@@ -253,6 +292,30 @@ class Form {
       this.refreshPositions();
     } else return;
     this.persist();
+  }
+
+  // Switching on: points start unknown. Switching off: unknown points go back to 0 and
+  // the date goes back to an exact day (the form can't show a partial date then).
+  setMemory(on) {
+    this.syncText();
+    const st = this.st;
+    st.from_memory = on;
+    if (on) {
+      for (const s of st.seats) if (s.points === 0) s.points = null;
+    } else {
+      for (const s of st.seats) if (s.points == null) s.points = 0;
+      st.date_precision = "day";
+    }
+    this.draw();
+  }
+
+  setPrecision(p) {
+    this.syncText();
+    const st = this.st;
+    st.date_precision = p;
+    if (p === "month") st.played_on = `${st.played_on.slice(0, 7)}-01`;
+    else if (p === "year") st.played_on = `${st.played_on.slice(0, 4)}-01-01`;
+    this.draw();
   }
 
   seat(key) { return this.st.seats.find((s) => s.key === key); }
@@ -270,7 +333,8 @@ class Form {
   // free-text fields are read into state first.
   syncText() {
     const st = this.st;
-    st.played_on = $("#f-date", this.form)?.value ?? st.played_on;
+    const date = $("#f-date", this.form);
+    if (date) st.played_on = dateFromInput(st.date_precision, date.value, st.played_on);
     st.map_string = $("#f-map", this.form)?.value ?? st.map_string;
     st.ti_assistant_url = $("#f-ti", this.form)?.value ?? st.ti_assistant_url;
     st.notes = $("#f-notes", this.form)?.value ?? st.notes;
@@ -309,7 +373,7 @@ class Form {
           placeholder: "Choose a faction",
           current: () => (seat().faction ? factionName(seat().faction) : ""),
           options: (c) => factionOptions({
-            ...c, seats: this.st.seats, seat: seat(), plan: this.plan,
+            ...c, seats: this.st.seats, seat: seat(), plan: this.plan, memory: this.memory,
             onPick: (id) => this.setFaction(seat(), id, box, input),
           }),
         });
@@ -379,8 +443,9 @@ class Form {
     if (!st.played_on) return "Pick the date the game was played.";
     for (const [i, s] of st.seats.entries()) {
       if (s.player_id == null) return `Seat ${i + 1} needs a player. Pick one from the list or add a guest.`;
-      if (!s.faction && !this.plan) return `Seat ${i + 1} needs a faction.`;
+      if (!s.faction && !this.plan && !this.memory) return `Seat ${i + 1} needs a faction.`;
     }
+    if (this.memory && !pickWinner(st).key) return "Pick who won.";
     if (!this.plan && pickWinner(st).tied) return "Pick the winner before saving.";
     if (st.ti_assistant_url.trim() && !safeTiLink(st.ti_assistant_url.trim())) return "The TI Assistant link must be an https://ti-assistant.com link.";
     return "";

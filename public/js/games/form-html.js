@@ -10,8 +10,9 @@ import { MIN_SEATS } from "./form-state.js";
 export function formHtml(f) {
   const st = f.st;
   return `
+      ${memoryHtml(f)}
       <div class="fields">
-        <div class="field"><label for="f-date">${f.plan ? "Playing on" : "Date"}</label><input id="f-date" type="date" value="${esc(st.played_on)}" required></div>
+        <div class="field"><label for="f-date">${f.plan ? "Playing on" : "Date"}</label>${dateInput(f)}</div>
         <div class="field"><span class="label" id="l-ptw">Points to win</span>${stepper("ptw", st.points_to_win, "points to win")}</div>
       </div>
       <fieldset class="toggles"><legend>Expansions</legend>
@@ -38,6 +39,28 @@ export function formHtml(f) {
       </div>`;
 }
 
+// The "from memory" switch (log mode only) and, when on, how exact the date is.
+function memoryHtml(f) {
+  if (f.plan || f.finish) return "";
+  return `<label class="tog"><input type="checkbox" role="switch" id="f-mem"${f.memory ? " checked" : ""}><span>Logging an old game from memory</span></label>
+      ${f.memory ? precisionHtml(f.st.date_precision) : ""}`;
+}
+
+function precisionHtml(prec) {
+  const opt = (v, label) => `<option value="${v}"${prec === v ? " selected" : ""}>${label}</option>`;
+  return `<div class="field"><label for="f-prec">How well do you know the date</label>
+        <select id="f-prec">${opt("day", "Exact day")}${opt("month", "Month and year")}${opt("year", "Year only")}</select></div>`;
+}
+
+// The date input matches the precision. st.played_on is always a full YYYY-MM-DD
+// (the 1st for a month, 1 January for a year); the input shows only what's known.
+function dateInput(f) {
+  const { played_on, date_precision } = f.st;
+  if (f.memory && date_precision === "month") return `<input id="f-date" type="month" value="${esc(played_on.slice(0, 7))}" required>`;
+  if (f.memory && date_precision === "year") return `<input id="f-date" type="number" inputmode="numeric" min="1990" max="2100" step="1" placeholder="2024" value="${esc(played_on.slice(0, 4))}" required>`;
+  return `<input id="f-date" type="date" value="${esc(played_on)}" required>`;
+}
+
 // Plan mode with a map shows it read-only; changing it happens on the Map page.
 function mapFieldHtml(f) {
   const st = f.st;
@@ -51,30 +74,57 @@ function mapFieldHtml(f) {
       <a class="check-map" id="check-map" target="_blank" rel="noopener" href="${esc(mapHref(st.map_string))}"${st.map_string.trim() ? "" : " hidden"}>Check this map</a></div>`;
 }
 
+// A null value (points not remembered) shows as "?".
 function stepper(id, value, what) {
   return `<div class="stepper" data-step="${id}">
     <button type="button" class="step" data-d="-1" aria-label="Fewer ${esc(what)}">−</button>
-    <output class="stepnum" aria-live="polite">${esc(value)}</output>
+    <output class="stepnum" aria-live="polite">${value == null ? "?" : esc(value)}</output>
     <button type="button" class="step" data-d="1" aria-label="More ${esc(what)}">+</button></div>`;
 }
 
-export function seatHtml(f, s, i) {
-  const n = i + 1;
-  const plan = f.plan;
-  const taken = new Set(f.st.seats.filter((x) => x !== s && x.seat_index != null).map((x) => x.seat_index));
-  const top = plan ? "" : `<div class="seat-top">
-      <span class="seatpts">${stepper(`pts:${s.key}`, s.points, `points for seat ${n}`)}</span>
-      <span class="winmark"></span>
+// Points stepper and the winner control. From memory the winner is a radio, and
+// points can be set back to unknown.
+function seatTopHtml(f, s, n) {
+  const stepperHtml = stepper(`pts:${s.key}`, s.points, `points for seat ${n}`);
+  let unknown = "", winner = `<span class="winmark"></span>`;
+  if (f.memory) {
+    unknown = `<button type="button" class="btn btn-quiet unknown-pts" data-unknown="${s.key}"${s.points == null ? " hidden" : ""}>Unknown</button>`;
+    winner = `<label class="radio"><input type="radio" name="winner" value="${s.key}" data-f="winner"${f.st.winner === s.key ? " checked" : ""}><span>Won</span></label>`;
+  }
+  return `<div class="seat-top">
+      <span class="seatpts">${stepperHtml}
+        ${unknown}</span>
+      ${winner}
     </div>`;
-  const position = plan ? "" : `<div><label for="i-${s.key}">Seat position <span class="muted">(optional)</span></label>
-        <select id="i-${s.key}" data-f="seat_index"><option value="">Not set</option>${Array.from({ length: 8 }, (_, k) => `<option value="${k}"${s.seat_index === k ? " selected" : ""}${taken.has(k) ? " disabled" : ""}>${k + 1}</option>`).join("")}</select></div>`;
+}
+
+function positionHtml(f, s) {
+  const taken = new Set(f.st.seats.filter((x) => x !== s && x.seat_index != null).map((x) => x.seat_index));
+  const opts = Array.from({ length: 8 }, (_, k) => `<option value="${k}"${s.seat_index === k ? " selected" : ""}${taken.has(k) ? " disabled" : ""}>${k + 1}</option>`).join("");
+  return `<div><label for="i-${s.key}">Seat position <span class="muted">(optional)</span></label>
+        <select id="i-${s.key}" data-f="seat_index"><option value="">Not set</option>${opts}</select></div>`;
+}
+
+function factionHtml(f, s) {
+  let placeholder = "Choose a faction";
+  if (f.plan) placeholder = "Not picked yet";
+  else if (f.memory) placeholder = "Not remembered";
+  const optional = f.plan || f.memory ? ' <span class="muted">(optional)</span>' : "";
+  const name = s.faction ? factionName(s.faction) : "";
+  return `<div class="field"><label for="fa-${s.key}">Faction${optional}</label>
+      <div class="combo" data-kind="faction"><span class="combo-sym">${s.faction ? sym(s.faction) : ""}</span><input id="fa-${s.key}" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="${placeholder}" value="${esc(name)}"><ul class="combo-list" role="listbox" hidden></ul></div></div>`;
+}
+
+export function seatHtml(f, s, i) {
+  const top = f.plan ? "" : seatTopHtml(f, s, i + 1);
+  const position = f.plan ? "" : positionHtml(f, s);
+  const removeHidden = f.fixed || f.st.seats.length <= MIN_SEATS ? " hidden" : "";
   return `<fieldset class="seat-card" data-key="${s.key}">
-    <legend>Seat ${n}</legend>
+    <legend>Seat ${i + 1}</legend>
     ${top}
     <div class="field"><label for="p-${s.key}">Player</label>
       <div class="combo" data-kind="player"><input id="p-${s.key}" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Choose a player" value="${esc(s.player_name)}"><ul class="combo-list" role="listbox" hidden></ul></div></div>
-    <div class="field"><label for="fa-${s.key}">Faction${plan ? ' <span class="muted">(optional)</span>' : ""}</label>
-      <div class="combo" data-kind="faction"><span class="combo-sym">${s.faction ? sym(s.faction) : ""}</span><input id="fa-${s.key}" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="${plan ? "Not picked yet" : "Choose a faction"}" value="${esc(s.faction ? factionName(s.faction) : "")}"><ul class="combo-list" role="listbox" hidden></ul></div></div>
+    ${factionHtml(f, s)}
     <div class="field two">
       <div><label for="c-${s.key}">Colour <span class="muted">(optional)</span></label>
         <select id="c-${s.key}" data-f="color"><option value="">Not set</option>${COLORS.map((c) => `<option value="${c}"${s.color === c ? " selected" : ""}>${cap(c)}</option>`).join("")}</select></div>
@@ -82,7 +132,7 @@ export function seatHtml(f, s, i) {
     </div>
     <div class="seat-foot">
       <label class="radio"><input type="radio" name="speaker" value="${s.key}" data-f="speaker"${f.st.speaker === s.key ? " checked" : ""}><span>Started as speaker</span></label>
-      <button type="button" class="btn rm-seat" data-rm="${s.key}"${f.fixed || f.st.seats.length <= MIN_SEATS ? " hidden" : ""}>Remove seat</button>
+      <button type="button" class="btn rm-seat" data-rm="${s.key}"${removeHidden}>Remove seat</button>
     </div>
   </fieldset>`;
 }

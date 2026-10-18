@@ -111,12 +111,13 @@ export function playerOptions({ players, seats, seat, q, typed, dirty, typeNew, 
 
 // Factions not already seated, A to Z ignoring "The". A planned seat can go back to none.
 // onPick(id), where id "" means none.
-export function factionOptions({ seats, seat, q, plan, onPick }) {
+export function factionOptions({ seats, seat, q, plan, memory, onPick }) {
   const used = new Set(seats.filter((x) => x !== seat).map((x) => x.faction));
   const out = FACTION_IDS.filter((id) => !used.has(id) && factionName(id).toLowerCase().includes(q))
     .sort((a, b) => factionName(a).replace(/^The /, "").localeCompare(factionName(b).replace(/^The /, "")))
     .map((id) => ({ label: factionName(id), faction: id, pick: () => onPick(id) }));
   // Factions are often drafted at the table, so a planned seat can go back to none.
-  if (plan && !q && seat.faction) out.unshift({ label: "No faction yet", pick: () => onPick("") });
+  // A game logged from memory may not know a faction at all.
+  if ((plan || memory) && !q && seat.faction) out.unshift({ label: memory ? "Faction not remembered" : "No faction yet", pick: () => onPick("") });
   return out;
 }

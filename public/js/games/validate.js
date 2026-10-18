@@ -7,6 +7,7 @@ export const LIMITS = { minSeats: 3, maxSeats: 8, minVp: 4, maxVp: 20, maxPoints
   mapString: 2000, tiUrl: 500, notes: 4000, color: 20, name: 40 };
 
 const FACTIONS = new Set(FACTION_IDS);
+const PRECISIONS = new Set(["day", "month", "year"]);
 
 class Invalid extends Error {}
 const bad = (msg) => new Invalid(msg);
@@ -56,6 +57,12 @@ function validate(body, creating, today) {
   }
   g.status = body.status ?? "finished";
   if (g.status !== "planned" && g.status !== "finished") throw bad("status must be planned or finished.");
+  g.from_memory = body.from_memory ?? false;
+  if (typeof g.from_memory !== "boolean") throw bad("from_memory must be true or false.");
+  if (g.from_memory && g.status === "planned") throw bad("A game logged from memory has already been played.");
+  g.date_precision = body.date_precision ?? "day";
+  if (!PRECISIONS.has(g.date_precision)) throw bad("date_precision must be day, month or year.");
+  if (g.date_precision !== "day" && !g.from_memory) throw bad("Only a game logged from memory can have a month or year for a date.");
   validateGameFields(body, g, today);
   validateSeats(body.seats, g);
   return g;
@@ -66,6 +73,9 @@ function validateGameFields(body, g, today) {
   if (!validDate(body.played_on)) throw bad("Played on needs a date like 2026-10-11.");
   // A planned game is for a date that hasn't happened yet.
   if (g.status === "finished" && body.played_on > today) throw bad("That date is in the future.");
+  // A month is stored as the 1st of it and a year as 1 January, so dates still sort.
+  const tail = { day: "", month: "-01", year: "-01-01" }[g.date_precision];
+  if (tail && !body.played_on.endsWith(tail)) throw bad(`A ${g.date_precision} date must be stored as ${g.date_precision === "month" ? "YYYY-MM-01" : "YYYY-01-01"}.`);
   g.played_on = body.played_on;
 
   g.points_to_win = body.points_to_win ?? 10;
@@ -101,7 +111,7 @@ function validateExtras(body, g) {
 function validateSeats(seats, g) {
   if (!Array.isArray(seats) || seats.length < LIMITS.minSeats || seats.length > LIMITS.maxSeats) throw bad("A game needs 3 to 8 seats.");
   const planned = g.status === "planned";
-  const seen = { players: new Set(), factions: new Set(), indexes: new Set(), planned };
+  const seen = { players: new Set(), factions: new Set(), indexes: new Set(), planned, memory: g.from_memory };
   let winners = 0, speakers = 0;
   g.seats = seats.map((s) => {
     const seat = validateSeat(s, seen);
@@ -120,10 +130,10 @@ function checkSeatIndex(seat_index, indexes) {
   indexes.add(seat_index);
 }
 
-// A planned seat may have no faction yet. A finished one needs it.
-function checkFaction(faction, factions, planned) {
+// A planned seat may have no faction yet, and so may one remembered later. A live finished one needs it.
+function checkFaction(faction, factions, optional) {
   if (faction === null || faction === undefined) {
-    if (planned) return null;
+    if (optional) return null;
     throw bad("Every seat needs a faction before the game can be finished.");
   }
   if (typeof faction !== "string" || !FACTIONS.has(faction)) throw bad("Unknown faction.");
@@ -132,23 +142,25 @@ function checkFaction(faction, factions, planned) {
   return faction;
 }
 
-function checkPoints(s, planned) {
+// From memory, a seat's points may be unknown (null), and a score above the winner's is allowed.
+function checkPoints(s, planned, memory) {
   if (planned) return 0; // points and winner don't exist until the game is played
+  if (memory && (s.points === null || s.points === undefined)) return null;
   if (!isInt(s.points) || s.points < 0 || s.points > LIMITS.maxPoints) throw bad("Points must be a whole number from 0 to 30.");
   return s.points;
 }
 
-function validateSeat(s, { players, factions, indexes, planned }) {
+function validateSeat(s, { players, factions, indexes, planned, memory }) {
   if (!s || typeof s !== "object") throw bad("Each seat must be an object.");
   if (!isInt(s.player_id)) throw bad("Each seat needs a player.");
   if (players.has(s.player_id)) throw bad("A player can only have one seat.");
   players.add(s.player_id);
-  const faction = checkFaction(s.faction, factions, planned);
+  const faction = checkFaction(s.faction, factions, planned || memory);
   const color = s.color ?? null;
   if (color !== null && (typeof color !== "string" || color.length > LIMITS.color)) throw bad("Colour is too long.");
   const seat_index = s.seat_index ?? null;
   if (seat_index !== null) checkSeatIndex(seat_index, indexes);
-  const points = checkPoints(s, planned);
+  const points = checkPoints(s, planned, memory);
   const win = s.is_winner ?? false, spk = s.is_speaker_start ?? false;
   if (typeof win !== "boolean" || typeof spk !== "boolean") throw bad("is_winner and is_speaker_start must be true or false.");
   return { player_id: s.player_id, faction, color, seat_index, points,

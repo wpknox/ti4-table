@@ -122,6 +122,8 @@ export async function revertGame(ctx, id) {
       `UPDATE games SET
          status = COALESCE(json_extract(r.data, '$.game.status'), 'finished'),
          played_on = json_extract(r.data, '$.game.played_on'),
+         date_precision = COALESCE(json_extract(r.data, '$.game.date_precision'), 'day'),
+         from_memory = COALESCE(json_extract(r.data, '$.game.from_memory'), 0),
          points_to_win = json_extract(r.data, '$.game.points_to_win'),
          pok = json_extract(r.data, '$.game.pok'),
          te = json_extract(r.data, '$.game.te'),
