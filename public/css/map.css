@@ -149,3 +149,18 @@
 /* Link from a map's seat reports to the plan form. */
 .plan-link { margin: 20px 0; }
 .plan-link a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+
+/* Legendary ability tips: hover or focus with a mouse, tap on a phone. The
+   tip spans the line's width below it, so it can't push the page sideways. */
+.lines li, .metrics td { position: relative; }
+.tip-btn { padding: 0; font: inherit; color: inherit; text-decoration: underline dotted var(--influence); text-underline-offset: 0.25em; cursor: help; }
+.tip-body {
+  display: none; position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% - 2px);
+  padding: 10px 12px; background: var(--hull-2); border: 1px solid var(--seam); border-radius: var(--radius-s);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); color: var(--star); font: 400 var(--t-s)/1.45 var(--text); cursor: auto;
+}
+.tip-body::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 10px; } /* hover bridge from the name */
+.lines .tip-body { left: 22px; }
+.tip-body b { color: var(--resource); font-weight: 700; }
+.tip-btn[aria-expanded="true"] + .tip-body, .tip-btn:focus-visible + .tip-body { display: block; }
+@media (hover: hover) { .tip:hover .tip-body { display: block; } }

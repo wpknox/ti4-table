@@ -102,6 +102,7 @@ export async function renderMap(url, main, ctx) {
   remember("maps", { m, label: `${plural(report.seats.length, "player")}, ${said.verdict.replace(/\.$/, "")}` }, 5, (a, b) => a.m === b.m);
 
   const notes = report.warnings;
+  const abilities = abilitiesOf(tiles);
   out.innerHTML = `<div class="map-result">
     <div class="map-left">
       <h1 class="verdict">${esc(said.verdict)}</h1>
@@ -115,7 +116,7 @@ export async function renderMap(url, main, ctx) {
     </div>
     <div class="map-right">
       ${notesHtml(notes)}
-      <div class="seats">${said.seats.map((s) => seatBlock(s, report.seats[s.seat - 1], report)).join("")}</div>
+      <div class="seats">${said.seats.map((s) => seatBlock(s, report.seats[s.seat - 1], report, abilities)).join("")}</div>
       <p class="plan-link"><a href="${esc(`/games/new?${new URLSearchParams({ plan: "1", m })}`)}">Plan a game on this map</a></p>
     </div>
   </div>`;
@@ -154,7 +155,16 @@ export async function renderMap(url, main, ctx) {
 
   const toggle = (n) => select(selected === n ? 0 : n);
 
+  // One ability tip open at a time; any other tap closes it.
+  const openTip = (btn) => {
+    for (const b of $$('.tip-btn[aria-expanded="true"]', out)) if (b !== btn) b.setAttribute("aria-expanded", "false");
+    btn?.setAttribute("aria-expanded", "true");
+  };
+
   out.addEventListener("click", (e) => {
+    const tip = e.target.closest(".tip-btn");
+    openTip(tip?.getAttribute("aria-expanded") === "false" ? tip : null);
+    if (e.target.closest(".tip")) return; // not a seat pick
     const g = e.target.closest("g.hex");
     if (g && svg.contains(g)) {
       note.textContent = g.dataset.label;
@@ -170,6 +180,15 @@ export async function renderMap(url, main, ctx) {
     const pick = e.target.closest(".seat");
     if (pick) toggle(parseInt(pick.dataset.seat, 10));
   });
+  out.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") openTip(null);
+  });
+  // Taps outside the report close a tip too. Drops itself once this page is replaced.
+  const closeOutside = (e) => {
+    if (!out.isConnected) document.removeEventListener("click", closeOutside);
+    else if (!out.contains(e.target)) openTip(null);
+  };
+  document.addEventListener("click", closeOutside);
   svg.addEventListener("keydown", (e) => {
     const g = e.target.closest?.("g.hex.home");
     if (g && (e.key === "Enter" || e.key === " ")) {
@@ -201,12 +220,42 @@ function notesHtml(notes) {
 
 const ruleLink = (rule) => (rule ? ` <a href="/rules/${esc(rule)}">See the rule</a>` : "");
 
-function seatBlock(s, data, report) {
+// ── Legendary abilities ────────────────────────────────────────────────────
+
+// Planet name -> { name, text } of its legendary ability card.
+const abilitiesOf = (tiles) =>
+  new Map(Object.values(tiles).flatMap((t) => t.planets.filter((p) => p.ability).map((p) => [p.name, p.ability])));
+
+let tipCount = 0;
+
+// A planet name that shows its ability on hover or focus, or on tap (phones have no hover).
+function tipHtml(name, ability) {
+  if (!ability) return esc(name);
+  const id = `tip-${++tipCount}`;
+  return `<span class="tip"><button class="tip-btn" type="button" aria-expanded="false" aria-describedby="${id}">${esc(name)}</button><span class="tip-body" id="${id}" role="tooltip"><b>${esc(ability.name)}.</b> ${esc(ability.text)}</span></span>`;
+}
+
+// The line's text with each term made a tip. Terms are in sentence order, so
+// work back from the end and never match inside a tip already inserted.
+function withTips(text, terms = [], abilities) {
+  let html = esc(text);
+  let end = html.length;
+  for (const t of [...terms].reverse()) {
+    const e = esc(t);
+    const at = html.lastIndexOf(e, end - e.length);
+    if (at < 0) continue;
+    html = html.slice(0, at) + tipHtml(t, abilities.get(t)) + html.slice(at + e.length);
+    end = at;
+  }
+  return html;
+}
+
+function seatBlock(s, data, report, abilities) {
   const faction = data.faction;
   const lines = s.lines
     .map(
       (l) =>
-        `<li>${marker(l.severity)}<span>${esc(l.text)}${ruleLink(l.rule)}</span></li>`,
+        `<li>${marker(l.severity)}<span>${withTips(l.text, l.terms, abilities)}${ruleLink(l.rule)}</span></li>`,
     )
     .join("");
   return `<article class="seat" data-seat="${s.seat}">
@@ -214,12 +263,12 @@ function seatBlock(s, data, report) {
     <div class="seat-body">
       <h2><button class="seat-pick" type="button" aria-pressed="false">${faction ? `<span class="visually-hidden">Seat ${s.seat}. </span>${symbolSlot(factionId(faction))}${esc(faction)}` : `Seat ${s.seat}`}</button></h2>
       <ul class="lines">${lines}</ul>
-      <details><summary>Details</summary>${metricsTable(data, report)}</details>
+      <details><summary>Details</summary>${metricsTable(data, report, abilities)}</details>
     </div>
   </article>`;
 }
 
-function metricsTable(d, report) {
+function metricsTable(d, report, abilities) {
   const m = d.metrics;
   const skips = Object.entries(m.skips).filter(([, v]) => v > 0);
   const row = (k, v) => `<tr><th scope="row">${k}</th><td>${v}</td></tr>`;
@@ -243,7 +292,7 @@ function metricsTable(d, report) {
     ${row("Moves to Mecatol Rex", m.mecatol === null ? "Can't reach" : String(m.mecatol))}
     ${row("Planets one move away", String(m.adjacentPlanets))}
     ${row("Wormholes", m.wormholes.length ? esc(m.wormholes.join(", ")) : "None")}
-    ${row("Legendary planets", m.legendary.length ? esc(m.legendary.join(", ")) : "None")}
+    ${row("Legendary planets", m.legendary.length ? m.legendary.map((n) => tipHtml(n, abilities.get(n))).join(", ") : "None")}
     ${row("Anomalies", anoms.length ? esc(anoms.map(([k, v]) => `${k.replace("-", " ")} ${fmt(v)}`).join(", ")) : "None")}
     ${contested.length ? row("Systems shared with", esc(contested.map(([k, v]) => `seat ${k} (${fmt(v)})`).join(", "))) : ""}
   </tbody></table>`;

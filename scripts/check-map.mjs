@@ -93,6 +93,7 @@ for (const [id, t] of Object.entries(data)) {
     check(many(p.trait, TRAITS), `${id} ${p.name} trait`);
     check(many(p.tech, TECHS), `${id} ${p.name} tech`);
     check(typeof p.legendary === "boolean", `${id} ${p.name} legendary flag`);
+    check(p.legendary === Boolean(p.ability?.name && p.ability?.text), `${id} ${p.name} has an ability exactly when legendary`);
   }
   check((t.type === "hyperlane") === Array.isArray(t.hyperlanes), `${id} hyperlanes field`);
 }

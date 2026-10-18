@@ -378,7 +378,9 @@ function sentence(f, seat, report) {
     case "legendary": {
       const what = plural(d.names.length, "a legendary planet", "legendary planets");
       const names = list(d.names);
-      return { text: d.sharedWith.length ? `Shares ${what} with seat ${list(d.sharedWith)}: ${names}.` : `Has ${what}: ${names}.` };
+      // `terms` lets the page show each planet's ability on its name.
+      const text = d.sharedWith.length ? `Shares ${what} with seat ${list(d.sharedWith)}: ${names}.` : `Has ${what}: ${names}.`;
+      return { text, terms: d.names, rule: "R_legendary_planets" };
     }
     case "few-adjacent":
       return { text: `Only ${d.value} ${plural(d.value, "planet", "planets")} one move away, so little to claim or defend early.` };
@@ -387,7 +389,7 @@ function sentence(f, seat, report) {
   }
 }
 
-/** report -> { verdict, seats: [{ seat, title, lines: [{ text, severity, rule? }] }] } */
+/** report -> { verdict, seats: [{ seat, title, lines: [{ text, severity, rule?, terms? }] }] } */
 export function describe(report) {
   const { code, seats: flagged } = report.verdict;
   let verdict;
