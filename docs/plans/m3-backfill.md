@@ -143,7 +143,7 @@ date | seats | options | notes
 
 ---
 
-## Phase C: fill from a TI Assistant link
+## Phase C: fill from a TI Assistant link or file
 
 ### Endpoint: `GET /api/ti-assistant/:gameId`
 
@@ -172,7 +172,15 @@ Signed-in editors only. Add it to `server/router.js`, and put the handler in a n
   //   (Magenta -> pink; unknown -> null)
 ```
 
-Use `server/ti-assistant.js` for the parsing, as a pure function `trimTiGame(json)`. Treat every field as untrusted: check types, cap string lengths, and cap seats at 8. Test it with `scripts/check-ti-assistant.mjs` against a **made-up** fixture in `scripts/fixtures/ti-assistant.mjs`. Build the fixture from the shape in the research doc, with fake names and a fake id.
+Put the parsing in a pure, shared module `public/js/games/ti-assistant.js`, which exports `trimTiGame(json)`. `server/ti-assistant.js` imports it, and so does the form's file upload (below).
+
+- **Treat every field as untrusted.** Check types, cap string lengths, and cap seats at 8.
+- **Sources, in order** (see research doc section 4b):
+  1. Seats: `data.factions` if it's a non-empty array. Otherwise the `event.factions` of the earliest `ADVANCE_PHASE` entry, which is the last array element because the log is newest first. Use `mapPosition` as `seat_index`.
+  2. Speaker: the earliest `ADVANCE_PHASE`'s `state.speaker` (a faction name). Otherwise `data.speaker` (an index), but only if the log has `ASSIGN_STRATEGY_CARD` entries.
+- **Add `likely_winner_faction`:** the `faction` of the newest `SCORE_OBJECTIVE` entry, only when an `END_GAME` entry exists, otherwise null. The form shows it as a hint, never as the saved winner (see Form).
+- **Tests:** `scripts/check-ti-assistant.mjs`, against **made-up** fixtures in `scripts/fixtures/ti-assistant.mjs`. Build them from the shapes in the research doc, with fake names and fake ids. Write one fixture per shape: live-game `data.factions`, and the archived export with empty `data.factions` and `ADVANCE_PHASE` snapshots.
+- **Live check:** the owner has a real archived export, outside the repo. Ask the orchestrator to run the parser on it. Never copy it into the repo.
 
 Points and winner are **not** provided. The research doc explains why: they aren't stored in the download, and recomputing them means re-implementing TI Assistant's scoring. The person fills them in.
 
@@ -185,6 +193,8 @@ Points and winner are **not** provided. The research doc explains why: they aren
   - players, by matching names against the roster with the phase B matcher. An unmatched name leaves the player empty, with a hint under the seat: "TI Assistant calls this player 'X'". Use `esc()`.
 - A toast says "Filled from TI Assistant. Add the final points and winner." Nothing is saved until the person presses save.
 - On failure, show the server's message. The form stays usable.
+- **Next to the link field, offer "Or load a TI Assistant file"** (`<input type="file" accept="application/json,.json">`). It reads the file in the browser (max 5 MB, `JSON.parse` in a try) and runs the same `trimTiGame`. The file never leaves the phone, so no server call is needed. This covers archived games and the data file TI Assistant offers for download. It fills the same fields, except the link.
+- **If `likely_winner_faction` is set,** show it under the points: "TI Assistant's log has <faction> scoring last before the game ended." Use `esc()` and the faction's display name. Don't select a winner from it.
 
 ### Security review (owner rule: before this deploys)
 

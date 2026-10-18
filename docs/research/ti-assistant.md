@@ -67,6 +67,19 @@ TI Assistant ids are the English display names, not slugs: `Emirates of Hacan`, 
 ### Missing or unreliable
 Final points and winner (derive or use archive), exact VP target, speaker in sparse logs, game end in partial logs, a planned game's date, and anything about player identity (names are not tied to our users).
 
+## 4b. A real archived-game export (owner's file, 2026-10-17)
+
+The owner downloaded the data file of one of the group's own archived games: 6 players, April 2026, about 320 KB, 942 log entries. The id and names are deliberately not recorded here. It has the same top-level shape (`data`, `timers`, `actionLog`), but it differs from what section 4 assumes:
+
+- **`data.factions` is an empty list, and `data.speaker` is 0.** Faction, colour, seat and player name are only available from the `ADVANCE_PHASE` log entries. Each one carries `event.factions`, an object keyed by faction name: `{ id, color, mapPosition, playerName, order, techs, ... }`. It also carries `event.state`: `{ round, phase, speaker, ... }`. All 18 snapshots agreed on `mapPosition`, `color` and `playerName`. The earliest snapshot (the log is newest first, so it's the last entry) is round 1 `SETUP`. Its `state.speaker` is the starting speaker, as a faction name. Round 1's first `ASSIGN_STRATEGY_CARD` `pickedBy` agreed with it.
+- **`options["map-string"]` is `""`.** No map was entered. There is one `SWAP_MAP_TILES` entry, which we ignore.
+- **`options.expansions`** is `POK, CODEX ONE…FOUR, THUNDERS EDGE`. `victory-points` is 10.
+- **The date** comes from the earliest `timestampMillis`, which is the game's start day. The game ran past midnight, so `END_GAME` is the next calendar day. Use the start.
+- **Faction names** are those of `F_deepwrought`, `F_rebellion`, `F_jol_nar`, `F_naaz_rokha`, `F_creuss` and `F_ral_nel`, all without "The". `factionId()` in `public/js/factions.js` matches all six.
+- **No points or winner fields, again.** There are 47 `SCORE_OBJECTIVE` events, `{faction, objective}` with no VP value. There are no `MANUAL_VP_UPDATE` entries, and Imperial points and Custodians aren't separate events. Points can't be derived without an objective VP table. The last `SCORE_OBJECTIVE` before `END_GAME` names a faction that is *probably* the winner, but that is a guess, not data.
+
+So a parser must read `data.factions` when it's non-empty, otherwise the `ADVANCE_PHASE` snapshots. The speaker comes from the earliest snapshot's `state.speaker`, otherwise `data.speaker`.
+
 ## 5. CORS, auth, rate limits (verified)
 
 - `GET /api/{id}/download` and `/api/archived-games` with `Origin: https://example.com` return 200 with no `Access-Control-Allow-Origin`. `OPTIONS` returns 204 with `allow: GET, HEAD, OPTIONS` and no CORS headers. A browser `fetch` from our origin would be blocked. Use a Pages Function (`functions/api/...`) that fetches server-side and returns the trimmed result.
