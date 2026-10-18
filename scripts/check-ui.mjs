@@ -248,6 +248,17 @@ async function run() {
     check("window.__xss is undefined after the file fill", (await page.evaluate(() => window.__xss)) === undefined);
     check("The scores button shows for a file named like TI Assistant's download", await page.locator("#ti-scores").isVisible());
     check("The first factions are filled in", (await page.locator(".seat-card").first().locator("[data-kind=faction] input").inputValue()).includes("Jol-Nar"));
+    const padLeft = await page.locator(".seat-card").first().locator("[data-kind=faction] input").evaluate((el) => getComputedStyle(el).paddingLeft);
+    check("The faction text starts clear of the faction symbol", padLeft === "42px", padLeft);
+    const card = (i) => page.locator(".seat-card").nth(i);
+    const faction = (i) => card(i).locator("[data-kind=faction] input").inputValue();
+    const positions = () => page.locator(".seat-card select[data-f=seat_index]").evaluateAll((els) => els.map((e) => e.value));
+    check("After a fill the cards are in position order", JSON.stringify(await positions()) === JSON.stringify(["0", "1", "2", "3", "4", "5"]), JSON.stringify(await positions()));
+    const [f0, f1] = [await faction(0), await faction(1)];
+    await card(0).locator("select[data-f=seat_index]").selectOption({ value: "1" });
+    check("Picking another seat's position swaps the two cards, still in position order",
+      (await faction(0)) === f1 && (await faction(1)) === f0 && JSON.stringify(await positions()) === JSON.stringify(["0", "1", "2", "3", "4", "5"]));
+    check("The moved seat's position select keeps focus", await page.evaluate(() => document.activeElement?.dataset.f === "seat_index"));
     await page.reload();
     await page.waitForSelector("#gform");
     await upload("export.json", ARCHIVED_EXPORT);

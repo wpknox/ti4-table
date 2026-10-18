@@ -114,9 +114,12 @@ function seatTopHtml(f, s, n) {
     </div>`;
 }
 
+// A position another seat holds stays pickable: picking it swaps the two seats.
+export const positionLabel = (k, taken) => (taken ? `${k + 1} (swap)` : String(k + 1));
+
 function positionHtml(f, s) {
   const taken = new Set(f.st.seats.filter((x) => x !== s && x.seat_index != null).map((x) => x.seat_index));
-  const opts = Array.from({ length: 8 }, (_, k) => `<option value="${k}"${s.seat_index === k ? " selected" : ""}${taken.has(k) ? " disabled" : ""}>${k + 1}</option>`).join("");
+  const opts = Array.from({ length: 8 }, (_, k) => `<option value="${k}"${s.seat_index === k ? " selected" : ""}>${positionLabel(k, taken.has(k))}</option>`).join("");
   return `<div><label for="i-${s.key}">Seat position <span class="muted">(optional)</span></label>
         <select id="i-${s.key}" data-f="seat_index"><option value="">Not set</option>${opts}</select></div>`;
 }

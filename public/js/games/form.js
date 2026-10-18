@@ -20,13 +20,22 @@ import { tabs, todayLocal, safeTiLink, mapHref, sym, errorBlock } from "./ui.js"
 import { checkGameBody } from "./validate.js";
 import {
   MAX_SEATS, newSeat, blank, pickWinner, modeOf, usableDraft, fitSeats, fromGame, sanitiseDraft, toBody,
-  fillFromTi, applyTiScores,
+  fillFromTi, applyTiScores, sortByPosition,
 } from "./form-state.js";
 import { trimTiGame, tiGameId } from "./ti-assistant.js";
 import { formHtml, seatHtml } from "./form-html.js";
 import { bindCombo, playerOptions, factionOptions } from "./combo.js";
 
 // ── Entry ──────────────────────────────────────────────────────────────────
+
+// The form's state: the game (or a blank one), or a usable saved draft on top.
+function startState(env, game, mode, draftKey) {
+  const st = fromGame(game) ?? blank();
+  if (!game && mode.plan) st.map_string = (env.url.searchParams.get("m") ?? "").trim().slice(0, 2000);
+  if (mode.finish && st.played_on > todayLocal()) st.played_on = todayLocal(); // a finished game can't be dated ahead
+  const draft = store.get(draftKey, null);
+  return usableDraft(draft, mode, st) ? { st: sanitiseDraft(draft, st), restored: true } : { st, restored: false };
+}
 
 export async function renderForm(env, editId) {
   const { main, ctx, me } = env;
@@ -57,15 +66,7 @@ export async function renderForm(env, editId) {
   }
 
   const mode = modeOf(env, game);
-  let st = fromGame(game) ?? blank();
-  if (!game && mode.plan) st.map_string = (env.url.searchParams.get("m") ?? "").trim().slice(0, 2000);
-  if (mode.finish && st.played_on > todayLocal()) st.played_on = todayLocal(); // a finished game can't be dated ahead
-  const draft = store.get(draftKey, null);
-  let restored = false;
-  if (usableDraft(draft, mode, st)) {
-    st = sanitiseDraft(draft, st);
-    restored = true;
-  }
+  const { st, restored } = startState(env, game, mode, draftKey);
   // Plan mode on a map: one seat per map seat, fixed.
   const model = mode.plan && st.map_string.trim() ? await loadMapModel(st.map_string).catch(() => null) : null;
   if (ctx.stale()) return;
@@ -250,30 +251,37 @@ class Form {
     const t = e.target.closest("button, input[type=radio]");
     if (!t) return;
     if (this.onScoreClick(t)) return;
-    if (t.matches("[data-rm]")) {
-      this.syncText();
-      this.st.seats = this.st.seats.filter((s) => s.key !== t.dataset.rm);
-      if (this.st.winner === t.dataset.rm) this.st.winner = null;
-      if (this.st.speaker === t.dataset.rm) this.st.speaker = null;
-      this.redrawSeats();
-    } else if (t.id === "add-seat") {
-      this.syncText();
-      const added = newSeat();
-      if (this.memory) added.points = null; // points start unknown
-      this.st.seats.push(added);
-      this.redrawSeats();
-      const last = $$(".seat-card", this.form).at(-1);
-      $("input", last)?.focus();
-    } else if (t.id === "ti-fill") void this.fillFromLink();
+    if (t.matches("[data-rm]")) this.removeSeat(t.dataset.rm);
+    else if (t.id === "add-seat") this.addSeat();
+    else if (t.id === "ti-fill") void this.fillFromLink();
     else if (t.id === "ti-scores") void this.getScores();
-    else if (t.id === "cancel") {
-      back("/games");
-    } else if (t.matches("input[type=radio][data-f=speaker]")) {
-      // Clicking the chosen speaker again clears it.
-      if (this.st.speaker === t.value) { this.st.speaker = null; t.checked = false; }
-      else this.st.speaker = t.value;
-      this.persist();
-    }
+    else if (t.id === "cancel") back("/games");
+    else if (t.matches("input[type=radio][data-f=speaker]")) this.toggleSpeaker(t);
+  }
+
+  removeSeat(key) {
+    this.syncText();
+    this.st.seats = this.st.seats.filter((s) => s.key !== key);
+    if (this.st.winner === key) this.st.winner = null;
+    if (this.st.speaker === key) this.st.speaker = null;
+    this.redrawSeats();
+  }
+
+  addSeat() {
+    this.syncText();
+    const added = newSeat();
+    if (this.memory) added.points = null; // points start unknown
+    this.st.seats.push(added);
+    this.redrawSeats();
+    const last = $$(".seat-card", this.form).at(-1);
+    $("input", last)?.focus();
+  }
+
+  // Clicking the chosen speaker again clears it.
+  toggleSpeaker(radio) {
+    if (this.st.speaker === radio.value) { this.st.speaker = null; radio.checked = false; }
+    else this.st.speaker = radio.value;
+    this.persist();
   }
 
   onInput(e) {
@@ -300,11 +308,8 @@ class Form {
     else if (t.id === "f-pok") st.pok = t.checked;
     else if (t.id === "f-te") st.te = t.checked;
     else if (t.dataset.f === "color") this.seat(t.closest(".seat-card").dataset.key).color = t.value;
-    else if (t.dataset.f === "seat_index") {
-      this.seat(t.closest(".seat-card").dataset.key).seat_index = t.value === "" ? null : Number(t.value);
-      this.syncText();
-      this.refreshPositions();
-    } else return;
+    else if (t.dataset.f === "seat_index") this.setPosition(t.closest(".seat-card").dataset.key, t.value);
+    else return;
     this.persist();
   }
 
@@ -334,13 +339,18 @@ class Form {
 
   seat(key) { return this.st.seats.find((s) => s.key === key); }
 
-  // Disable positions another seat already uses, without a full redraw.
-  refreshPositions() {
-    for (const card of $$(".seat-card", this.form)) {
-      const mine = this.seat(card.dataset.key);
-      const taken = new Set(this.st.seats.filter((x) => x !== mine && x.seat_index != null).map((x) => x.seat_index));
-      for (const o of $$("select[data-f=seat_index] option", card)) if (o.value !== "") o.disabled = taken.has(Number(o.value));
-    }
+  // Picking a position another seat holds swaps the two, so a mixed-up import
+  // can be fixed one pick at a time.
+  setPosition(key, value) {
+    const s = this.seat(key);
+    const v = value === "" ? null : Number(value);
+    const other = v == null ? null : this.st.seats.find((x) => x !== s && x.seat_index === v);
+    if (other) other.seat_index = s.seat_index;
+    s.seat_index = v;
+    this.syncText();
+    sortByPosition(this.st);
+    this.redrawSeats();
+    $(`#i-${s.key}`, this.form)?.focus(); // the card may have moved; keep the place
   }
 
   // Text inputs that are drawn from state are re-created on redraw, so the

@@ -146,6 +146,14 @@ export function fillFromTi(st, t, roster) {
   st.speaker = t.speaker_index != null ? seats[t.speaker_index]?.key ?? null : null;
   const w = t.seats.findIndex((ts) => ts.is_winner);
   st.winner = w >= 0 ? seats[w].key : null;
+  sortByPosition(st); // speaker and winner are keys, so sorting after is safe
+}
+
+// Seat cards in position order, so "Seat 3" is the seat at position 3. Seats
+// without a position keep their order, after the rest.
+export function sortByPosition(st) {
+  const at = (s) => s.seat_index ?? Infinity;
+  st.seats = st.seats.map((s, i) => [s, i]).sort(([a, i], [b, j]) => at(a) - at(b) || i - j).map(([s]) => s);
 }
 
 // Adds only the official points and winner to seats already on the form, matching
