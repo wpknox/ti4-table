@@ -4,7 +4,7 @@ Researched 2026-10-18. "Verified" means I observed it with curl or by reading th
 
 ## Verdict
 
-Feasible. A public, unauthenticated JSON endpoint returns a game's setup and full action log. It sends no CORS headers, so the fetch must go through our own Pages Function. Final points are not stored directly and must be derived from the log, or taken from a second endpoint that only covers archived (finished, processed) games. Ask the author before shipping, mainly as a courtesy (see 6).
+Feasible. A public, unauthenticated JSON endpoint returns a game's setup and full action log. It sends no CORS headers, so the fetch must go through our own Pages Function. Final points are not in the download; for archived games one extra request to the archive list returns the official winner and points (section 4c). Don't derive them from the log. Ask the author before shipping, mainly as a courtesy (see 6).
 
 ## 1. Open source (verified)
 
@@ -79,6 +79,12 @@ The owner downloaded the data file of one of the group's own archived games: 6 p
 - **No points or winner fields, again.** There are 47 `SCORE_OBJECTIVE` events, `{faction, objective}` with no VP value. There are no `MANUAL_VP_UPDATE` entries, and Imperial points and Custodians aren't separate events. Points can't be derived without an objective VP table. The last `SCORE_OBJECTIVE` before `END_GAME` names a faction that is *probably* the winner, but that is a guess, not data.
 
 So a parser must read `data.factions` when it's non-empty, otherwise the `ADVANCE_PHASE` snapshots. The speaker comes from the earliest snapshot's `state.speaker`, otherwise `data.speaker`.
+
+## 4c. Final scores for one game (verified 2026-10-17 against the owner's game)
+
+- **The archive page** (`/en/archive/{id}`) server-renders a `gameData` object into its Next.js payload. Its `objectives[name].scorers` lists factions, with repeats for Imperial Point and Support for the Throne. The page adds up the VP values from its own objective definitions. That needs their scoring tables, so we don't replicate it.
+- **The log disagrees with that state.** The page counts Imperial Point twice and the Custodians Token once, and none of those appears as a `SCORE_OBJECTIVE` entry. The log also has three `SCORE_OBJECTIVE` entries that the page doesn't count. Don't derive scores from the log.
+- **One request gets the official result.** `GET /api/archived-games?timestamp={start + 1}`, where `start` is the earliest `timestampMillis` in the log, returned that game as the **first** of 50 entries. Its `winner` and `factions[name].points` exactly matched the totals the page shows: winner on 10, the rest on 8, 8, 7, 7, 7. The archive entry's `timestampMillis` equals `start`. It covers archived games only. Keep only the matching key, and discard the other entries, which are other groups' games.
 
 ## 5. CORS, auth, rate limits (verified)
 
