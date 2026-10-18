@@ -22,8 +22,27 @@ const TYPES = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".woff2": "font/woff2",
+  ".webp": "image/webp",
   ".txt": "text/plain; charset=utf-8",
 };
+
+// The "/*" headers from public/_headers (the CSP and friends), so CSP
+// violations show up here and not first in production.
+async function siteHeaders() {
+  const text = await readFile(join(ROOT, "_headers"), "utf8").catch(() => "");
+  const out = {};
+  let inAll = false;
+  for (const line of text.split("\n")) {
+    if (/^\S/.test(line)) inAll = line.trim() === "/*";
+    else if (inAll && line.includes(":")) {
+      const i = line.indexOf(":");
+      out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    }
+  }
+  delete out["Strict-Transport-Security"]; // not over plain http
+  return out;
+}
+const HEADERS = await siteHeaders();
 
 async function fileFor(urlPath) {
   const path = join(ROOT, decodeURIComponent(urlPath));
@@ -49,6 +68,10 @@ createServer(async (req, res) => {
   }
   // Missing assets should 404, not silently get the app shell.
   const looksLikeAsset = /\.\w+$/.test(pathname);
+  if (pathname === "/_headers") {
+    res.writeHead(404).end("Not found"); // Pages doesn't serve it either
+    return;
+  }
   const path =
     (await fileFor(pathname)) ?? (looksLikeAsset ? null : join(ROOT, "index.html"));
   if (!path) {
@@ -56,6 +79,7 @@ createServer(async (req, res) => {
     return;
   }
   res.writeHead(200, {
+    ...HEADERS,
     "Content-Type": TYPES[extname(path)] ?? "application/octet-stream",
     "Cache-Control": "no-store",
   });

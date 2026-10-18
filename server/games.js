@@ -68,6 +68,18 @@ function validateGameFields(body, g) {
   validateExtras(body, g);
 }
 
+// The link is shown as "Open in TI Assistant", so it may only go there.
+const TI_HOSTS = new Set(["ti-assistant.com", "www.ti-assistant.com", "dev.ti-assistant.com"]);
+export function isTiAssistantUrl(s) {
+  if (/\s/.test(s)) return false;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" && TI_HOSTS.has(u.hostname) && !u.username && !u.password && !u.port;
+  } catch {
+    return false;
+  }
+}
+
 // Map string, TI Assistant link and notes.
 function validateExtras(body, g) {
   g.map_string = body.map_string ?? null;
@@ -76,8 +88,8 @@ function validateExtras(body, g) {
   }
   g.ti_assistant_url = body.ti_assistant_url ?? null;
   if (g.ti_assistant_url !== null &&
-      (typeof g.ti_assistant_url !== "string" || g.ti_assistant_url.length > 500 || !g.ti_assistant_url.startsWith("https://"))) {
-    throw bad("The TI Assistant link must start with https://.");
+      (typeof g.ti_assistant_url !== "string" || g.ti_assistant_url.length > 500 || !isTiAssistantUrl(g.ti_assistant_url))) {
+    throw bad("The TI Assistant link must be an https://ti-assistant.com link.");
   }
   g.notes = body.notes ?? "";
   if (typeof g.notes !== "string" || g.notes.length > 4000) throw bad("Notes can be up to 4,000 characters.");
@@ -236,7 +248,9 @@ async function finishedPage(db, before, limit) {
   return results;
 }
 
+// Reads need a sign-in too: the log is private to the group.
 export async function listGames(ctx) {
+  requireRole(ctx, "editor");
   const db = ctx.env.DB;
   const q = ctx.url.searchParams;
   const status = q.get("status");
@@ -259,6 +273,7 @@ async function loadGame(db, id) {
 }
 
 export async function getGame(ctx, id) {
+  requireRole(ctx, "editor");
   const db = ctx.env.DB;
   const found = await loadGame(db, id);
   // Soft-deleted games are visible to admins only (so they can find them to restore).

@@ -101,6 +101,7 @@ async function run() {
   const e1 = await signIn("Ed One", "editor");
   const e2 = await signIn("Ed Two", "editor");
   const e3 = await signIn("Ed Three", "editor");
+  const reader = await signIn("Reader", "editor"); // never edits; reads need a session
 
   // Auth
   let r = await api("GET", "/api/me");
@@ -187,7 +188,7 @@ async function run() {
   check("Unseated Ed Three edits G1 -> 403", r.status === 403, r.status);
   r = await edit(e3, G1, "nope", (b) => { b.seats[3].player_id = e3.id; });
   check("Ed Three adding himself to the seats is still 403", r.status === 403, r.status);
-  const afterBlocked = await api("GET", `/api/games/${G1}`);
+  const afterBlocked = await api("GET", `/api/games/${G1}`, { cookie: reader.cookie });
   check("The blocked edits changed nothing", afterBlocked.data.game.notes === "edited by Ed Two" &&
     !afterBlocked.data.game.seats.some((s) => s.player_id === e3.id));
   r = await edit(admin, G1, "edited by admin");
@@ -202,7 +203,12 @@ async function run() {
   check("can_edit/can_delete for Ed One is true/true", (await flags(e1)) === "true/true");
   check("can_edit/can_delete for Ed Two is true/false", (await flags(e2)) === "true/false");
   check("can_edit/can_delete for Ed Three is false/false", (await flags(e3)) === "false/false");
-  check("can_edit/can_delete signed out is false/false", (await flags(null)) === "false/false");
+  r = await api("GET", `/api/games/${G1}`);
+  check("GET /api/games/:id signed out -> 401", r.status === 401, r.status);
+  r = await api("GET", "/api/games?full=1");
+  check("GET /api/games signed out -> 401", r.status === 401, r.status);
+  r = await api("GET", "/api/players");
+  check("GET /api/players signed out -> 401", r.status === 401, r.status);
 
   const revs = wrangler("d1", "execute", "ti4-table", "--local", "--persist-to", STATE, "--json",
     "--command", `SELECT COUNT(*) AS n FROM game_revisions WHERE game_id = ${G1}`);
@@ -219,15 +225,15 @@ async function run() {
   r = await api("DELETE", `/api/games/${G1}`, { cookie: e2.cookie, body: {} });
   check("Seated Ed Two deleting G1 -> 403", r.status === 403, r.status);
   r = await api("DELETE", `/api/games/${G1}`, { cookie: e1.cookie, body: {} });
-  const listed = await api("GET", "/api/games?full=1");
+  const listed = await api("GET", "/api/games?full=1", { cookie: reader.cookie });
   check("Creator Ed One deletes G1 -> 200 and it leaves the list",
     r.status === 200 && !listed.data.games.some((g) => g.id === G1));
   r = await api("POST", `/api/admin/games/${G1}/restore`, { cookie: admin.cookie, body: {} });
-  const listed2 = await api("GET", "/api/games?full=1");
+  const listed2 = await api("GET", "/api/games?full=1", { cookie: reader.cookie });
   check("Admin restores G1 and it is back", r.status === 200 && listed2.data.games.some((g) => g.id === G1));
 
   // Reads (before the role change, which doesn't affect them)
-  r = await api("GET", "/api/players");
+  r = await api("GET", "/api/players", { cookie: reader.cookie });
   check("GET /api/players never includes role or email",
     r.status === 200 && r.data.players.length > 0 && r.data.players.every((p) => !("role" in p) && !("email" in p)));
   const all = listed2.data.games;
@@ -236,7 +242,7 @@ async function run() {
   const seen = [];
   let before = "";
   for (let guard = 0; guard < 20; guard++) {
-    const page = await api("GET", `/api/games?limit=2${before}`);
+    const page = await api("GET", `/api/games?limit=2${before}`, { cookie: reader.cookie });
     seen.push(...page.data.games.map((g) => g.id));
     if (page.data.next === null) break;
     before = `&before=${page.data.next}`;
@@ -246,20 +252,27 @@ async function run() {
     JSON.stringify(seen));
 
   // Security
+  for (const link of ["https://evil.example/game/abc", "http://ti-assistant.com/en/game/abc",
+    "https://ti-assistant.com.evil.example/x", "https://user@ti-assistant.com/x", "javascript:alert(1)"]) {
+    r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, g1p3.data.id], { ti_assistant_url: link }) });
+    check(`TI Assistant link ${link} -> 400`, r.status === 400, r.status);
+  }
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, g1p3.data.id], { ti_assistant_url: "https://ti-assistant.com/en/game/AbC123" }) });
+  check("A real ti-assistant.com link is accepted (201)", r.status === 201, r.status);
   const evilName = "Robert'); DROP TABLE games;--";
   const evilNotes = "' OR 1=1 --";
   r = await api("POST", "/api/players", { cookie: e1.cookie, body: { name: evilName } });
   const evilId = r.data?.id;
   r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, evilId], { notes: evilNotes }) });
-  const evilGame = await api("GET", `/api/games/${r.data?.id}`);
-  const plist = await api("GET", "/api/players");
-  const glist = await api("GET", "/api/games");
+  const evilGame = await api("GET", `/api/games/${r.data?.id}`, { cookie: reader.cookie });
+  const plist = await api("GET", "/api/players", { cookie: reader.cookie });
+  const glist = await api("GET", "/api/games", { cookie: reader.cookie });
   check("SQL-looking name and notes come back byte for byte, and GET /api/games still works",
     plist.data.players.some((p) => p.name === evilName) && evilGame.data?.game?.notes === evilNotes &&
     evilGame.data.game.seats.some((s) => s.player_name === evilName) && glist.status === 200 && glist.data.games.length > 0);
 
   r = await api("POST", "/api/games", { cookie: e3.cookie, body: { ...gameBody([e3.id, e2.id, g1p3.data.id]), created_by: e1.id, updated_by: e1.id } });
-  const spoof = await api("GET", `/api/games/${r.data?.id}`);
+  const spoof = await api("GET", `/api/games/${r.data?.id}`, { cookie: reader.cookie });
   check("A created_by in the body is ignored (stored as Ed Three)",
     r.status === 201 && spoof.data.game.created_by.id === e3.id && spoof.data.game.updated_by.id === e3.id);
 
@@ -321,7 +334,7 @@ async function run() {
   // Undo
   r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, g1p3.data.id], { notes: "pristine", points_to_win: 10 }) });
   const G9 = r.data.id;
-  const pristine = (await api("GET", `/api/games/${G9}`)).data.game;
+  const pristine = (await api("GET", `/api/games/${G9}`, { cookie: reader.cookie })).data.game;
   const vandal = gameBody([e1.id, e2.id, g1p3.data.id], { notes: "vandalised", points_to_win: 20, pok: false, te: true });
   vandal.seats.forEach((s, i) => { s.points = 30 - i; s.faction = FACTION_LIST[5 - i]; });
   r = await api("PUT", `/api/games/${G9}`, { cookie: e2.cookie, body: vandal });
@@ -336,7 +349,7 @@ async function run() {
   r = await api("POST", `/api/admin/games/${G1}/revert`, { cookie: admin.cookie, body: { revision_id: target?.id } });
   check("Reverting to a revision of another game -> 404", r.status === 404, r.status);
   r = await api("POST", `/api/admin/games/${G9}/revert`, { cookie: admin.cookie, body: { revision_id: target?.id } });
-  const restored = (await api("GET", `/api/games/${G9}`)).data.game;
+  const restored = (await api("GET", `/api/games/${G9}`, { cookie: reader.cookie })).data.game;
   const same = (g) => JSON.stringify({ ...g, updated_by: 0, updated_at: 0, can_edit: 0, can_delete: 0 });
   check("Admin reverts G9 and it matches the pre-vandalism game exactly", r.status === 200 && same(restored) === same(pristine));
   const afterRev = await api("GET", `/api/admin/games/${G9}/revisions`, { cookie: admin.cookie });
@@ -388,32 +401,32 @@ async function run() {
   check("Finishing with a missing faction -> 400", r.status === 400, r.status);
   r = await api("PUT", `/api/games/${P1}`, { cookie: e3.cookie, body: planBody() });
   check("An unseated editor who didn't create the planned game can't edit it (403)", r.status === 403, r.status);
-  const planFull = await api("GET", "/api/games?full=1");
+  const planFull = await api("GET", "/api/games?full=1", { cookie: reader.cookie });
   check("full=1 excludes planned games", !planFull.data.games.some((g) => g.id === P1));
-  const planList = await api("GET", "/api/games?status=planned");
+  const planList = await api("GET", "/api/games?status=planned", { cookie: reader.cookie });
   check("status=planned lists only planned games, with map and link fields",
     planList.status === 200 && planList.data.games.length > 0 &&
     planList.data.games.every((g) => g.status === "planned" && "map_string" in g && "ti_assistant_url" in g) &&
     planList.data.games.some((g) => g.id === P1));
-  const finList = await api("GET", "/api/games?status=finished&limit=100");
-  const defList = await api("GET", "/api/games?limit=100");
+  const finList = await api("GET", "/api/games?status=finished&limit=100", { cookie: reader.cookie });
+  const defList = await api("GET", "/api/games?limit=100", { cookie: reader.cookie });
   check("status=finished and the default list hold no planned games",
     [finList, defList].every((l) => l.status === 200 && !l.data.games.some((g) => g.status === "planned")));
-  r = await api("GET", "/api/games?status=bogus");
+  r = await api("GET", "/api/games?status=bogus", { cookie: reader.cookie });
   check("status=bogus -> 400", r.status === 400, r.status);
   r = await api("PUT", `/api/games/${P1}`, { cookie: e2.cookie, body: fin({ notes: "results in" }) });
   check("A seated editor finishes the planned game -> 200", r.status === 200, r.status);
-  const finFull = await api("GET", "/api/games?full=1");
+  const finFull = await api("GET", "/api/games?full=1", { cookie: reader.cookie });
   check("The finished game now appears in full=1 and not in status=planned",
     finFull.data.games.some((g) => g.id === P1 && g.status === "finished") &&
-    !(await api("GET", "/api/games?status=planned")).data.games.some((g) => g.id === P1));
+    !(await api("GET", "/api/games?status=planned", { cookie: reader.cookie })).data.games.some((g) => g.id === P1));
   r = await api("PUT", `/api/games/${P1}`, { cookie: e1.cookie, body: planBody() });
   check("Finished -> planned -> 400", r.status === 400, r.status);
   const prevs = await api("GET", `/api/admin/games/${P1}/revisions`, { cookie: admin.cookie });
   const planRev = prevs.data?.revisions?.[0];
   check("The revision taken at finishing records status planned", planRev?.data?.game?.status === "planned");
   r = await api("POST", `/api/admin/games/${P1}/revert`, { cookie: admin.cookie, body: { revision_id: planRev?.id } });
-  const back = (await api("GET", `/api/games/${P1}`)).data?.game;
+  const back = (await api("GET", `/api/games/${P1}`, { cookie: reader.cookie })).data?.game;
   check("Admin revert of the pre-finish revision restores planned",
     r.status === 200 && back?.status === "planned" && back.seats.every((st) => st.faction === null));
 

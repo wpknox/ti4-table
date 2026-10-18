@@ -26,8 +26,18 @@ export function expansionsText(g) {
   return list.length ? list.join(", ") : "base game";
 }
 
-// Only https:// links are ever rendered as links.
-export const safeHttps = (u) => typeof u === "string" && /^https:\/\//i.test(u) && !/\s/.test(u);
+// Only https://ti-assistant.com links are ever rendered as links. Same check as
+// isTiAssistantUrl in server/games.js; older rows that fail it show no link.
+const TI_HOSTS = new Set(["ti-assistant.com", "www.ti-assistant.com", "dev.ti-assistant.com"]);
+export function safeTiLink(s) {
+  if (typeof s !== "string" || /\s/.test(s)) return false;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" && TI_HOSTS.has(u.hostname) && !u.username && !u.password && !u.port;
+  } catch {
+    return false;
+  }
+}
 export const mapHref = (m) => `/map?m=${encodeURIComponent(m)}`;
 
 export const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);

@@ -11,8 +11,9 @@ function cleanName(value) {
 const isUnique = (err) => /UNIQUE/i.test(String(err?.message));
 
 // ── Routes ───
-// Public: no roles or emails.
+// Signed-in players only (names are the group's own). No roles or emails.
 export async function listPlayers(ctx) {
+  requireRole(ctx, "editor");
   const { results } = await ctx.env.DB.prepare(
     "SELECT id, name, archived FROM players ORDER BY name COLLATE NOCASE"
   ).all();

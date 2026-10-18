@@ -86,6 +86,9 @@ function buildPage(file) {
   const id = file.replace(/\.php$/, "");
   let html = readFileSync(join(SRC, file), "utf8")
     .replace(/<\?php\s+include\s+"(prefix|suffix)\.php"\s*\?>\n?/g, "")
+    // The site's CSP blocks style="" (rules.css styles these elements instead).
+    // <style> blocks stay: annotate() reads the paragraph counters from them.
+    .replace(/\s+style="[^"]*"/g, "")
     .trim();
 
   const h1 = html.match(/<header>\s*<h1>(.*?)<\/h1>\s*<\/header>/is);

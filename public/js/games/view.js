@@ -11,7 +11,7 @@ import { get, post, del, currentPlayer, ApiError } from "./api.js";
 import { factionName } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
 import * as S from "./stats.js";
-import { dayShort, yearOf, dayLong, expansionsText, safeHttps, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
+import { dayShort, yearOf, dayLong, expansionsText, safeTiLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
 import { renderAdmin, renderHistory } from "./admin.js";
 
@@ -39,9 +39,12 @@ export async function renderGames(url, main, ctx) {
   if (ctx.stale()) return;
 
   const env = { url, main, ctx, me };
+  if (rest === "/join") return renderJoin(env);
+  // Games are private to the group: every other page needs a sign-in, and
+  // signing in comes back to the page that was asked for.
+  if (!me) return renderJoin({ ...env, returnTo: path + url.search });
   if (rest === "") return renderList(env);
   if (rest === "/new") return renderForm(env, null);
-  if (rest === "/join") return renderJoin(env);
   if (rest === "/stats") return renderStats(env);
   if (rest === "/me") return renderMe(env);
   if (rest === "/admin") return renderAdmin(env);
@@ -74,7 +77,7 @@ const scoreLine = (g) => g.seats.map((s) => s.points).sort((a, b) => b - a).join
 
 // The TI Assistant link sits beside the row link, not inside it (a link can't hold a link).
 function tiLink(g) {
-  if (!safeHttps(g.ti_assistant_url)) return "";
+  if (!safeTiLink(g.ti_assistant_url)) return "";
   return `<a class="ti-link" href="${esc(g.ti_assistant_url)}" target="_blank" rel="noopener noreferrer">TI Assistant</a>`;
 }
 
@@ -208,7 +211,7 @@ function renderGame(env, id) {
     document.title = `${g.status === "planned" ? "Planned game" : "Game"} of ${dayLong(g.played_on)} · TI4 Table`;
     const edited = g.updated_by?.id !== g.created_by?.id || g.updated_at !== g.created_at;
     const links = [];
-    if (safeHttps(g.ti_assistant_url))
+    if (safeTiLink(g.ti_assistant_url))
       links.push(`<a href="${esc(g.ti_assistant_url)}" target="_blank" rel="noopener noreferrer">Open in TI Assistant</a>`);
     if (g.map_string) links.push(`<a href="${esc(mapHref(g.map_string))}">See the map</a>`);
 
@@ -316,7 +319,7 @@ const formatCodeInput = (v) => {
 };
 
 function renderJoin(env) {
-  const { main, me } = env;
+  const { main, me, returnTo } = env;
   // Read a pre-filled code from the fragment, then remove it from the URL.
   let pre = "";
   const hm = location.hash.match(/^#code=([0-9A-Za-z-]{1,20})$/);
@@ -325,8 +328,9 @@ function renderJoin(env) {
     history.replaceState(history.state, "", location.pathname + location.search);
   }
   main.innerHTML = `<div class="games-page g-join">
-    ${tabs("join", me)}
+    ${me ? tabs("join", me) : ""}
     <h1>Sign in</h1>
+    ${returnTo ? "<p>Games are only for the group. Sign in with the invite code the admin gave you.</p>" : ""}
     ${me ? `<p>You're signed in as ${esc(me.name)}. Entering a code signs this device in as whoever the code is for.</p>` : ""}
     <form class="join-form" novalidate>
       <label for="code">Invite code</label>
@@ -353,7 +357,7 @@ function renderJoin(env) {
     try {
       const { player } = await post("/api/auth/redeem", { code: input.value });
       toast(`Signed in as ${player.name}`);
-      navigate("/games", { replace: true });
+      navigate(returnTo ?? "/games", { replace: true });
     } catch (ex) {
       err.textContent = ex.message; // the server's own plain message, including the 429 one
       err.hidden = false;
@@ -463,7 +467,7 @@ function renderStats(env) {
           .map(
             (f) => `<li>
               <span class="bar-label">${sym(f.faction)}${esc(factionName(f.faction))}</span>
-              <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width:${Math.round(f.rate * 100)}%"></span></span>
+              <span class="bar-track" aria-hidden="true"><span class="bar-fill" data-pct="${Math.round(f.rate * 100)}"></span></span>
               <span class="bar-val">${pct(f.rate)} <span class="muted">${f.wins} of ${esc(plural(f.games, "game"))}</span></span></li>`,
           )
           .join("")}</ul>
@@ -479,6 +483,8 @@ function renderStats(env) {
         ${seat.enough ? seatTable(seat) : `<p class="muted">Seat effects show up after ${S.SEAT_EFFECTS_MIN} games.</p>`}
       </section>
     </div>`;
+    // Set through the CSSOM: the CSP blocks style="" attributes in markup.
+    for (const bar of main.querySelectorAll(".bar-fill")) bar.style.width = `${bar.dataset.pct}%`;
     void hydrateSymbols(main);
 
     const who = $("#who", main);

@@ -16,7 +16,7 @@ import { hydrateSymbols } from "../factions.js";
 import { get, post, put } from "./api.js";
 import { FACTION_IDS, factionName, COLORS } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
-import { tabs, todayLocal, safeHttps, mapHref, cap, sym, errorBlock } from "./ui.js";
+import { tabs, todayLocal, safeTiLink, mapHref, cap, sym, errorBlock } from "./ui.js";
 
 const MIN_SEATS = 3, MAX_SEATS = 8, START_SEATS = 6;
 
@@ -621,7 +621,7 @@ class Form {
       if (!s.faction && !this.plan) return `Seat ${i + 1} needs a faction.`;
     }
     if (!this.plan && pickWinner(st).tied) return "Pick the winner before saving.";
-    if (st.ti_assistant_url.trim() && !safeHttps(st.ti_assistant_url.trim())) return "The TI Assistant link must start with https://.";
+    if (st.ti_assistant_url.trim() && !safeTiLink(st.ti_assistant_url.trim())) return "The TI Assistant link must be an https://ti-assistant.com link.";
     return "";
   }
 

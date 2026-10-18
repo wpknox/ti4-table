@@ -9,7 +9,10 @@ export class HttpError extends Error {
 export const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+    headers: {
+      "content-type": "application/json; charset=utf-8", "cache-control": "no-store",
+      "x-content-type-options": "nosniff", ...headers,
+    },
   });
 
 export const error = (status, message) => json({ error: message }, status);

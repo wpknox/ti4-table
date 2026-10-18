@@ -1,0 +1,10 @@
+# Cloudflare Pages response headers for static files. API responses set their
+# own headers in server/http.js (Pages doesn't apply this file to Functions).
+# The CSP has no 'unsafe-inline': no inline scripts, styles or style="" in
+# markup. Set widths and the like through element.style instead.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000
