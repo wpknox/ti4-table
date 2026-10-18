@@ -449,6 +449,13 @@ async function run() {
   const reverted = (await api("GET", `/api/games/${M1}`, { cookie: e1.cookie })).data?.game;
   check("A revert restores from_memory, month precision and null points",
     r.status === 200 && reverted.from_memory === true && reverted.date_precision === "month" && reverted.played_on === "2024-07-01" && reverted.seats.every((st) => st.points === null));
+  // A snapshot taken before 0003 has neither key; reverting to it must give a live, day-precision game.
+  const strip = wrangler("d1", "execute", "ti4-table", "--local", "--persist-to", STATE, "--command",
+    `UPDATE game_revisions SET data = json_remove(data, '$.game.from_memory', '$.game.date_precision') WHERE id = ${Number(memRev?.id)}`);
+  r = await api("POST", `/api/admin/games/${M1}/revert`, { cookie: admin.cookie, body: { revision_id: memRev?.id } });
+  const fromOld = (await api("GET", `/api/games/${M1}`, { cookie: e1.cookie })).data?.game;
+  check("A revert to a pre-0003 snapshot restores from_memory false and day precision",
+    strip.status === 0 && r.status === 200 && fromOld.from_memory === false && fromOld.date_precision === "day", `${strip.status} ${r.status} ${fromOld?.from_memory} ${fromOld?.date_precision}`);
 
   // Roles
   r = await api("PATCH", `/api/admin/players/${e3.id}`, { cookie: admin.cookie, body: { role: "none" } });
