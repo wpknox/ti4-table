@@ -590,12 +590,10 @@ async function joinChecks({ admin, e1, e2, reader }) {
   });
   const GJ = mk.data?.id;
   check("Join: a planned game with guests is created", mk.status === 201 && Number.isInteger(GJ), JSON.stringify(mk.data));
-  const once = await signIn("Join Once Temp", "editor");
   // Give gOnce a used invite, as if they had signed in before.
   sql(`INSERT INTO invites (code_hash, player_id, role, created_by, expires_at, used_at)
        VALUES ('check-used-${GJ}', ${gOnce}, 'editor', ${admin.id}, '2000-01-01T00:00:00Z', '2000-01-01T00:00:00Z')`);
   await api("PATCH", `/api/admin/players/${gGone}`, { cookie: admin.cookie, body: { archived: true } });
-  void once; void gOther;
 
   // 1. Who may make and stop links
   let r = await api("POST", `/api/games/${GJ}/join-links`, { cookie: e1.cookie, body: {} });
@@ -773,6 +771,7 @@ async function joinChecks({ admin, e1, e2, reader }) {
   await mbad("a TI Assistant password with no link", { ti_assistant_password: "pw only" });
   await mbad("a Milty passkey with no link", { milty_admin_pass: "0123456789abcdef" });
   r = await mput(e1, { milty_admin_pass: "bbbbbbbbbbbbbbbb" });
+  check("Milty: the creator sets a passkey again", r.status === 200, String(r.status));
   r = await mput(e2, { milty_url: null });
   gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
   check("Milty: a non-creator clearing the Milty link also clears the stored passkey", r.status === 200 && gm.milty_url === null && gm.milty_admin_pass === null, `${r.status} ${JSON.stringify(gm)}`);

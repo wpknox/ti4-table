@@ -105,7 +105,7 @@ function validateGameFields(body, g, today) {
   validateExtras(body, g);
 }
 
-// Map string, TI Assistant link and notes.
+// Map string, links, their password and passkey, and notes.
 function validateExtras(body, g) {
   g.map_string = body.map_string ?? null;
   if (g.map_string !== null && (typeof g.map_string !== "string" || g.map_string.length > LIMITS.mapString)) {
@@ -120,25 +120,25 @@ function validateExtras(body, g) {
   if (g.milty_url !== null && (typeof g.milty_url !== "string" || g.milty_url.length > LIMITS.tiUrl || !isMiltyUrl(g.milty_url))) {
     throw bad("The Milty link must be an https://milty.shenanigans.be link.");
   }
-  g.milty_admin_pass = body.milty_admin_pass ?? null;
-  if (g.milty_admin_pass !== null) {
-    if (typeof g.milty_admin_pass !== "string") throw bad("A Milty admin passkey is letters a–f and numbers, like 3f9a1c0b7d2e4a6f.");
-    g.milty_admin_pass = g.milty_admin_pass.trim() || null;
-    if (g.milty_admin_pass !== null && !/^[0-9a-f]{8,64}$/i.test(g.milty_admin_pass)) throw bad("A Milty admin passkey is letters a–f and numbers, like 3f9a1c0b7d2e4a6f.");
-  }
-  g.ti_assistant_password = body.ti_assistant_password ?? null;
-  if (g.ti_assistant_password !== null) {
-    if (typeof g.ti_assistant_password !== "string") throw bad("The TI Assistant password can be up to 100 characters.");
-    g.ti_assistant_password = g.ti_assistant_password.trim() || null;
-    if (g.ti_assistant_password !== null && (g.ti_assistant_password.length > 100 || /[\u0000-\u001f\u007f]/.test(g.ti_assistant_password))) {
-      throw bad("The TI Assistant password can be up to 100 characters.");
-    }
-  }
+  g.milty_admin_pass = optionalText(body.milty_admin_pass, (s) => /^[0-9a-f]{8,64}$/i.test(s),
+    "A Milty admin passkey is letters a–f and numbers, like 3f9a1c0b7d2e4a6f.");
+  g.ti_assistant_password = optionalText(body.ti_assistant_password, (s) => s.length <= 100 && !/[\u0000-\u001f\u007f]/.test(s),
+    "The TI Assistant password can be up to 100 characters.");
   // A password or passkey belongs to its link.
   if (g.ti_assistant_password !== null && g.ti_assistant_url === null) throw bad(PAIR_TI);
   if (g.milty_admin_pass !== null && g.milty_url === null) throw bad(PAIR_MILTY);
   g.notes = body.notes ?? "";
   if (typeof g.notes !== "string" || g.notes.length > LIMITS.notes) throw bad("Notes can be up to 4,000 characters.");
+}
+
+// A trimmed string that passes `ok`, or null when absent or blank.
+function optionalText(value, ok, message) {
+  if (value == null) return null;
+  if (typeof value !== "string") throw bad(message);
+  const s = value.trim();
+  if (!s) return null;
+  if (!ok(s)) throw bad(message);
+  return s;
 }
 
 // ── Seats ───

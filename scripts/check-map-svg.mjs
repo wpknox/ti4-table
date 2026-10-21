@@ -111,7 +111,7 @@ for (const view of ["analysis", "art"]) {
     check(!/<text class="tile-id"[^>]*>0<\/text>/.test(svg), `${view}: no 0 label`);
   }
   // Hyperlanes keep their A/B face.
-  const lane = MAPS.find((m) => /\d+[AB]\d?(\s|$)/.test(m.str));
+  const lane = MAPS.find((m) => /\d[AB]\d?(?:\s|$)/.test(m.str));
   if (lane) {
     const p2 = parseMapString(lane.str, { data: tiles });
     const svg = renderMapSvg(p2, analyze(p2, tiles), tiles, { tileIds: true });

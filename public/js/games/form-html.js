@@ -52,10 +52,12 @@ const tiPasswordField = (st) => `<div class="field"><label for="f-ti-pw">TI Assi
 // The Milty draft link, and its admin passkey for the game's creator and admins only (the server withholds it from everyone else).
 const miltyFields = (f) => `<div class="field"><label for="f-milty">Milty draft link <span class="muted">(optional)</span></label>
         <input id="f-milty" type="url" inputmode="url" autocomplete="off" placeholder="https://milty.shenanigans.be/d/…" value="${esc(f.st.milty_url)}"></div>
-      ${f.showPass ? `<div class="field"><label for="f-milty-pass">Milty admin passkey <span class="muted">(optional)</span></label>
-        <input id="f-milty-pass" type="text" inputmode="text" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="64" value="${esc(f.st.milty_admin_pass)}">
+      ${f.showPass ? miltyPassField(f.st) : ""}`;
+
+const miltyPassField = (st) => `<div class="field"><label for="f-milty-pass">Milty admin passkey <span class="muted">(optional)</span></label>
+        <input id="f-milty-pass" type="text" inputmode="text" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="64" value="${esc(st.milty_admin_pass)}">
         <p class="muted hint">Optional. Only you and admins can see this. Paste it into Restore session on the Milty draft page. Needs the link above.</p>
-        <p class="error pair-err" id="pair-milty" role="status" hidden></p></div>` : ""}`;
+        <p class="error pair-err" id="pair-milty" role="status" hidden></p></div>`;
 
 // New finished games only: fill the form from a TI Assistant link or a downloaded file.
 // The link field is the game's own TI Assistant link, so it is not shown twice.

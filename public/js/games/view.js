@@ -25,6 +25,9 @@ const GAME_ROUTES = [
   [/^\/(\d{1,12})\/history$/, (env, id) => renderHistory(env, id)],
 ];
 
+// Pages that work signed out.
+const OPEN_ROUTES = { "/join": (env) => renderJoin(env), "/claim": (env) => renderClaim(env) };
+
 export async function renderGames(url, main, ctx) {
   document.title = "Games · TI4 Table";
   let path = url.pathname;
@@ -41,9 +44,9 @@ export async function renderGames(url, main, ctx) {
   if (ctx.stale()) return;
 
   const env = { url, main, ctx, me };
-  if (rest === "/join") return renderJoin(env);
-  // A join link is opened signed out by design; the server checks the code.
-  if (rest === "/claim") return renderClaim(env);
+  // Sign-in, and a join link (opened signed out by design; the server checks the code).
+  const open = OPEN_ROUTES[rest];
+  if (open) return open(env);
   // Games are private to the group: every other page needs a sign-in, and
   // signing in comes back to the page that was asked for.
   if (!me) return renderJoin({ ...env, returnTo: path + url.search });
