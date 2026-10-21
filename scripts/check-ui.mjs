@@ -127,6 +127,31 @@ async function run() {
     check("view=art renders svg.mapsvg.art", (await page.locator("svg.mapsvg.art").count()) === 1);
   });
 
+  await step("Map tile numbers", async () => {
+    const ids = () => page.locator("svg.mapsvg text.tile-id").count();
+    await go(mapUrl());
+    await page.waitForSelector("svg.mapsvg", { timeout: 15000 });
+    check("No tile numbers without ids=1", (await ids()) === 0);
+    await go(mapUrl("&ids=1"));
+    await page.waitForSelector("svg.mapsvg text.tile-id", { timeout: 15000 });
+    check("ids=1 renders tile numbers", (await ids()) > 0 && (await page.locator('.ids-toggle[aria-pressed="true"]').count()) === 1);
+    await go(mapUrl());
+    await page.waitForSelector(".ids-toggle", { timeout: 15000 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    check("No horizontal scroll at 390px with the button", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await page.locator(".ids-toggle").click();
+    await page.waitForSelector("svg.mapsvg text.tile-id", { timeout: 10000 });
+    check("Clicking Tile numbers adds ids=1 and labels", new URL(page.url()).searchParams.get("ids") === "1" && (await ids()) > 0);
+    await page.locator('.view-toggle button[data-view="art"]').click();
+    await page.waitForSelector("svg.mapsvg.art text.tile-id", { timeout: 15000 });
+    check("Switching to Tile art keeps ids=1", new URL(page.url()).searchParams.get("ids") === "1");
+    await page.goBack();
+    await page.waitForSelector("svg.mapsvg:not(.art)", { timeout: 10000 });
+    await page.goBack();
+    await page.waitForFunction(() => !document.querySelector("svg.mapsvg text.tile-id"), null, { timeout: 10000 });
+    check("Back removes ids=1 again", !new URL(page.url()).searchParams.has("ids"));
+  });
+
   await step("Signed out", async () => {
     await go("/games");
     check("Sign-in form shown", (await page.locator("#code").count()) === 1);

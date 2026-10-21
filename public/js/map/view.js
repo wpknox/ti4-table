@@ -19,10 +19,11 @@ const EXAMPLE =
 const TECH = { green: "biotic", blue: "propulsion", yellow: "cybernetic", red: "warfare" };
 
 const fmt = (n) => String(Math.round(n * 10) / 10);
-const mapHref = (m, seat, view) => {
+const mapHref = (m, seat, view, ids) => {
   const q = new URLSearchParams({ m });
   if (seat) q.set("seat", seat);
   if (view === "art") q.set("view", "art");
+  if (ids) q.set("ids", "1");
   return `/map?${q}`;
 };
 const marker = (sev) =>
@@ -38,6 +39,8 @@ export async function renderMap(url, main, ctx) {
   // The remembered choice only goes into links for *new* maps (form, example).
   const view = url.searchParams.get("view") === "art" ? "art" : "analysis";
   const dflt = store.get("mapView", "analysis");
+  const ids = url.searchParams.get("ids") === "1"; // tile numbers on the hexes; same rule as view
+  const idsDflt = store.get("mapIds", "0") === "1";
 
   main.innerHTML = `<div class="map-page">
     <form class="map-form" novalidate>
@@ -46,7 +49,7 @@ export async function renderMap(url, main, ctx) {
       <p class="map-hint" id="map-hint" role="status"></p>
       <div class="map-actions">
         <button class="btn btn-primary" type="submit">Analyse map</button>
-        <a class="map-example" href="${esc(mapHref(EXAMPLE, 0, dflt))}">Try an example map</a>
+        <a class="map-example" href="${esc(mapHref(EXAMPLE, 0, dflt, idsDflt))}">Try an example map</a>
       </div>
     </form>
     <div class="map-out"></div>
@@ -64,7 +67,7 @@ export async function renderMap(url, main, ctx) {
       return;
     }
     hint.textContent = "";
-    navigate(mapHref(v, 0, dflt));
+    navigate(mapHref(v, 0, dflt, idsDflt));
   });
 
   const out = $(".map-out", main);
@@ -107,11 +110,14 @@ export async function renderMap(url, main, ctx) {
     <div class="map-left">
       <h1 class="verdict">${esc(said.verdict)}</h1>
       <p class="map-sub">${esc(plural(report.seats.length, "seat"))}, ${esc(plural(parsed.tiles.length, "tile"))}.</p>
-      <div class="view-toggle" role="group" aria-label="Map view">
-        <button type="button" data-view="analysis" aria-pressed="${view !== "art"}">Analysis</button>
-        <button type="button" data-view="art" aria-pressed="${view === "art"}">Tile art</button>
+      <div class="map-controls">
+        <div class="view-toggle" role="group" aria-label="Map view">
+          <button type="button" data-view="analysis" aria-pressed="${view !== "art"}">Analysis</button>
+          <button type="button" data-view="art" aria-pressed="${view === "art"}">Tile art</button>
+        </div>
+        <button type="button" class="ids-toggle" aria-pressed="${ids}">Tile numbers</button>
       </div>
-      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { view, art, symbols, teSpots: report.thundersEdge.spots.map((s) => s.pos), title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
+      <div class="map-fig">${renderMapSvg(parsed, report, tiles, { view, art, symbols, tileIds: ids, teSpots: report.thundersEdge.spots.map((s) => s.pos), title: `Map for ${plural(report.seats.length, "player")}. ${said.verdict}` })}</div>
       <p class="tile-note" id="tile-note" aria-live="polite"></p>
       <p class="te-note">${esc(teNote(report.thundersEdge.spots))}</p>
     </div>
@@ -142,7 +148,7 @@ export async function renderMap(url, main, ctx) {
       $(".seat-pick", b).setAttribute("aria-pressed", String(on));
     }
     svg.classList.toggle("has-sel", !!n);
-    if (touchUrl) setUrl(mapHref(m, n, view));
+    if (touchUrl) setUrl(mapHref(m, n, view, ids));
   }
   select(seat, { url: false });
 
@@ -150,9 +156,14 @@ export async function renderMap(url, main, ctx) {
     b.addEventListener("click", () => {
       if (b.dataset.view === view) return;
       store.set("mapView", b.dataset.view);
-      navigate(mapHref(m, selected, b.dataset.view)); // a real history entry, so Back undoes it
+      navigate(mapHref(m, selected, b.dataset.view, ids)); // a real history entry, so Back undoes it
     });
   }
+
+  $(".ids-toggle", out).addEventListener("click", () => {
+    store.set("mapIds", ids ? "0" : "1");
+    navigate(mapHref(m, selected, view, !ids));
+  });
 
   const toggle = (n) => select(selected === n ? 0 : n);
 

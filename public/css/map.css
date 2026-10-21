@@ -138,6 +138,24 @@
 .view-toggle button[aria-pressed="true"] { color: var(--star); border-bottom-color: var(--influence); }
 .view-toggle button:hover:not([aria-pressed="true"]) { color: var(--star); }
 
+/* Tile numbers switch: same quiet style as the view toggle, on its row (wraps on a phone). */
+.map-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 20px; margin: 0 0 4px; }
+.map-controls .view-toggle { margin: 0; }
+.ids-toggle {
+  min-height: 44px; padding: 0 2px; font: 600 var(--t-s)/1 var(--display); font-stretch: 105%;
+  color: var(--dust); border-bottom: 2px solid transparent;
+}
+.ids-toggle[aria-pressed="true"] { color: var(--influence); border-bottom-color: var(--influence); }
+.ids-toggle:hover:not([aria-pressed="true"]) { color: var(--star); }
+
+/* Tile numbers on hexes. Analysis: a small label at the top edge. Art: bigger, on a dark pill. */
+.mapsvg .tile-id { font: 600 5.6px var(--display); font-stretch: 110%; fill: var(--dust); text-anchor: middle; dominant-baseline: central; }
+.mapsvg .id-scrim { fill: rgb(0 0 0 / 0.65); pointer-events: none; }
+.mapsvg.art .tile-id { font-size: 9px; fill: #fff; }
+.mapsvg .tile-id-wrap { pointer-events: none; transition: opacity 0.15s ease; }
+.mapsvg.has-sel .hex:not(.sel) .tile-id-wrap { opacity: 0.45; }
+@media (prefers-reduced-motion: reduce) { .mapsvg .tile-id-wrap { transition: none; } }
+
 /* Tile art. The face stays underneath as the "before it loads" fill. */
 .mapsvg.art .dim { fill: #05070f; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
 .mapsvg.art.has-sel .hex:not(.sel) .dim { opacity: 0.7; }

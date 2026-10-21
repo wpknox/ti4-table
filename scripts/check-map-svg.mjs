@@ -91,6 +91,34 @@ for (const view of ["analysis", "art"]) {
   check(cell.includes(`aria-label="`) && /fair spot for Thunder's Edge" transform/.test(cell), `${view}: aria-label ends with the phrase`);
 }
 
+// Tile numbers: off changes nothing; on labels every non-home, non-open tile.
+{
+  const parsed = parseMapString("60 65 20 78 67 46 28 40 76 79 70 25 69 39 74 64 37 26 0 73 41 0 19 72 0 47 68 0 21 77 0 29 45 0 27 80", { data: tiles });
+  const report = analyze(parsed, tiles);
+  const homes = new Set(parsed.homes);
+  const want = parsed.tiles.filter((t) => t.id !== "0" && !homes.has(t.pos));
+  for (const view of ["analysis", "art"]) {
+    const opts = { title: "Test map", view, art };
+    const plain = renderMapSvg(parsed, report, tiles, opts);
+    check(plain === renderMapSvg(parsed, report, tiles, { ...opts, tileIds: false }), `${view}: tileIds false changes nothing`);
+    check(!plain.includes("tile-id"), `${view}: no labels without tileIds`);
+    const svg = renderMapSvg(parsed, report, tiles, { ...opts, tileIds: true });
+    check((svg.match(/<text class="tile-id"/g) ?? []).length === want.length, `${view}: ${want.length} tile numbers`);
+    check(balanced(svg), `${view}: tile number tags balance`);
+    check(/<text class="tile-id"[^>]*>18<\/text>/.test(svg), `${view}: Mecatol labelled`);
+    const homeGroups = svg.split('<g class="hex').filter((g) => g.startsWith(" home"));
+    check(homeGroups.length === parsed.homes.length && homeGroups.every((g) => !g.includes("tile-id")), `${view}: no number in a home`);
+    check(!/<text class="tile-id"[^>]*>0<\/text>/.test(svg), `${view}: no 0 label`);
+  }
+  // Hyperlanes keep their A/B face.
+  const lane = MAPS.find((m) => /\d+[AB]\d?(\s|$)/.test(m.str));
+  if (lane) {
+    const p2 = parseMapString(lane.str, { data: tiles });
+    const svg = renderMapSvg(p2, analyze(p2, tiles), tiles, { tileIds: true });
+    check(/<text class="tile-id"[^>]*>\d+[AB]<\/text>/.test(svg), `${lane.name}: hyperlane shows A/B`);
+  } else console.log("    (no fixture with A/B hyperlane ids)");
+}
+
 // User text must be escaped.
 const evil = renderMapSvg(parseMapString("1 2 3", { data: tiles }), analyze(parseMapString("1 2 3", { data: tiles }), tiles), tiles, { title: '<img onerror=x> "' });
 check(!evil.includes("<img"), "title is escaped");

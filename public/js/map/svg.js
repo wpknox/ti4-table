@@ -105,9 +105,10 @@ export function tileLabel(tile, info, seats, homeSeat) {
  *   faction's symbol (a key of `symbols`) instead of the home tile's own. Without it the output is unchanged.
  * @param {number[]} [opts.teSpots]  positions to outline as fair spots for Thunder's Edge (and say so in their label).
  *   Without it the output is unchanged.
+ * @param {boolean} [opts.tileIds]  write each tile's number on its hex (not on homes or open slots). Off = output unchanged.
  * @returns {string} an <svg> element
  */
-export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set(), seatLabels = null, teSpots = [] } = {}) {
+export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {}, view = "analysis", art = new Set(), seatLabels = null, teSpots = [], tileIds = false } = {}) {
   const isArt = view === "art";
   const seatAt = new Map(parsed.homes.map((pos, i) => [pos, i + 1]));
   const { slice, sharedPos } = sliceMaps(report);
@@ -126,7 +127,7 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
     `<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>${defs}</defs>`,
   ];
 
-  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels, te: new Set(teSpots) };
+  const ctx = { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels, te: new Set(teSpots), tileIds };
   for (const c of cells) out.push(...cellMarkup(c, ctx));
   out.push(`</svg>`);
   return out.join("");
@@ -135,7 +136,7 @@ export function renderMapSvg(parsed, report, tiles, { title = "Map", symbols = {
 // ── Pieces of a tile ───────────────────────────────────────────────────────
 
 // Everything for one hex: the group, its face, its marks and its edge.
-function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels, te }) {
+function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, seatLabels, te, tileIds }) {
   const { t } = c;
   const info = tiles[t.id];
   const homeSeat = seatAt.get(t.pos);
@@ -148,11 +149,13 @@ function cellMarkup(c, { tiles, seatAt, slice, sharedPos, isArt, art, symbols, s
   const out = [`<g ${cellAttrs(c, cls, seats, homeSeat, label)}>`, `<polygon class="face" points="${hexPoints(R * GAP)}"/>`];
   const shared = !homeSeat && sharedPos.has(t.pos);
   const teMark = isTe ? `<polygon class="te-spot" points="${hexPoints(R * GAP * 0.72)}"/>` : "";
-  if (hasArt) return [...out, ...artWithMark(t, homeSeat, shared, teMark)];
+  const idMark = tileIds && !homeSeat && t.id !== "0" ? idLabel(t.id, hasArt) : "";
+  if (hasArt) return [...out, ...artWithMark(t, homeSeat, shared, teMark + idMark)];
   if (cls.includes("red")) out.push(`<polygon class="tint" points="${hexPoints(R * GAP)}"/>`);
   if (shared) out.push(`<polygon class="shared" points="${hexPoints(R * GAP)}"/>`);
-  out.push(...innerMarks(t, info, homeSeat, symbols, seatLabels));
+  out.push(...innerMarks(t, info, homeSeat, symbols, seatLabels, tileIds));
   if (teMark) out.push(teMark);
+  if (idMark) out.push(idMark);
   out.push(`<polygon class="edge" points="${hexPoints(R * GAP)}"/>`, `</g>`);
   return out;
 }
@@ -171,16 +174,25 @@ function cellAttrs(c, cls, seats, homeSeat, label) {
 }
 
 // What's drawn inside the hex: hyperlane lanes, a home's numeral, or a system's planets.
-function innerMarks(t, info, homeSeat, symbols, seatLabels) {
+function innerMarks(t, info, homeSeat, symbols, seatLabels, ids) {
   if (info?.type === "hyperlane" && info.hyperlanes) return laneLines(info, t);
   if (homeSeat) return homeMarks(info, homeSeat, symbols, seatLabels?.[homeSeat]);
-  return t.id === "0" ? [] : systemMarks(info);
+  return t.id === "0" ? [] : systemMarks(info, ids);
 }
 
-// The art tile's pieces, with the Thunder's Edge mark (if any) before its edge and closing </g>.
-function artWithMark(t, homeSeat, shared, teMark) {
+// The tile's number, for building the physical map. aria-hidden: the hex's aria-label already says "Tile N".
+// Art has no other text, so its number is bigger and centred on a pill; analysis gets a small one at the top.
+function idLabel(id, onArt) {
+  const text = esc(id);
+  if (!onArt) return `<g class="tile-id-wrap" aria-hidden="true"><text class="tile-id" x="0" y="-12.6">${text}</text></g>`;
+  const w = f(id.length * 5.4 + 5);
+  return `<g class="tile-id-wrap" aria-hidden="true"><rect class="id-scrim" x="${f(-w / 2)}" y="-6.5" width="${w}" height="13" rx="2.5"/><text class="tile-id" x="0" y="0">${text}</text></g>`;
+}
+
+// The art tile's pieces, with any marks (Thunder's Edge, tile number) before its edge and closing </g>.
+function artWithMark(t, homeSeat, shared, marks) {
   const pieces = artTile(t, homeSeat, shared);
-  if (teMark) pieces.splice(pieces.length - 2, 0, teMark);
+  if (marks) pieces.splice(-2, 0, marks);
   return pieces;
 }
 
@@ -261,13 +273,15 @@ function homeMarks(info, homeSeat, symbols, label) {
 }
 
 // Planets (resources / influence, skips, legendary), anomaly glyphs and wormholes.
-function systemMarks(info) {
+// With `ids` the tile number sits at the top, so crowded systems make room: planets drop a little
+// and a lone anomaly glyph moves below them. Without it the output is unchanged.
+function systemMarks(info, ids = false) {
   const out = [];
   const planets = planetsOf(info);
   const anoms = anomalyList(info);
   const worms = info?.wormholes ?? [];
   const n = planets.length;
-  const top = worms.length ? -((n - 1) * 3.6) - 2.5 : -((n - 1) * 3.75);
+  const top = (worms.length ? -((n - 1) * 3.6) - 2.5 : -((n - 1) * 3.75)) + (ids ? idRoom(n) : 0);
   planets.forEach((p, i) => {
     const y = f(top + i * 7.5);
     const techs = techOf(p);
@@ -283,7 +297,7 @@ function systemMarks(info) {
   if (anoms.length) {
     const sorted = [...anoms].sort((a, b) => (STRICT.indexOf(a) + 9) % 9 - (STRICT.indexOf(b) + 9) % 9);
     const scale = anomalyScale(n, anoms.length);
-    const dy = anomalyShift(n, worms.length);
+    const dy = ids && n && n < 3 && !worms.length ? 11.5 : anomalyShift(n, worms.length);
     sorted.forEach((a, i) => {
       const dx = (i - (sorted.length - 1) / 2) * 12 * scale * 1.2;
       out.push(`<g class="glyph" transform="translate(${f(dx)} ${dy}) scale(${scale})">${glyph(a)}</g>`);
@@ -294,6 +308,12 @@ function systemMarks(info) {
     out.push(`<text class="worm" x="0" y="${n || anoms.length ? 13.5 : 3}">${esc(txt)}</text>`);
   }
   return out;
+}
+
+// How far planets drop to clear the tile number at the top.
+function idRoom(planetCount) {
+  if (planetCount > 2) return 3;
+  return planetCount === 2 ? 1.5 : 0;
 }
 
 function anomalyScale(planetCount, anomalyCount) {
