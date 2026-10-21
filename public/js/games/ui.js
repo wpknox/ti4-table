@@ -1,7 +1,7 @@
 // Small pieces shared by the games pages.
 import { esc } from "../lib.js";
 import { symbolSlot } from "../factions.js";
-import { isTiAssistantUrl } from "./validate.js";
+import { isTiAssistantUrl, isMiltyUrl } from "./validate.js";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -38,7 +38,7 @@ export function expansionsText(g) {
 
 // Only https://ti-assistant.com links are ever rendered as links; the check is
 // shared with the server (validate.js). Older rows that fail it show no link.
-export { isTiAssistantUrl as safeTiLink };
+export { isTiAssistantUrl as safeTiLink, isMiltyUrl as safeMiltyLink };
 export const mapHref = (m) => `/map?m=${encodeURIComponent(m)}`;
 
 export const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);

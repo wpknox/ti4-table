@@ -11,7 +11,7 @@ import { get, post, del, currentPlayer, ApiError } from "./api.js";
 import { factionName } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
 import * as S from "./stats.js";
-import { dayShortP, yearOf, dayLongP, expansionsText, safeTiLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
+import { dayShortP, yearOf, dayLongP, expansionsText, safeTiLink, safeMiltyLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
 import { renderAdmin, renderHistory } from "./admin.js";
 import { renderClaim } from "./claim.js";
@@ -234,6 +234,8 @@ function renderGame(env, id) {
     const links = [];
     if (safeTiLink(g.ti_assistant_url))
       links.push(`<a href="${esc(g.ti_assistant_url)}" target="_blank" rel="noopener noreferrer">Open in TI Assistant</a>`);
+    if (safeMiltyLink(g.milty_url))
+      links.push(`<a href="${esc(g.milty_url)}" target="_blank" rel="noopener noreferrer">Open the Milty draft</a>`);
     if (g.map_string) links.push(`<a href="${esc(mapHref(g.map_string))}">See the map</a>`);
 
     main.innerHTML = `<div class="games-page g-game">
@@ -244,13 +246,46 @@ function renderGame(env, id) {
       ${g.map_string ? `<div class="game-map" hidden></div>` : ""}
       ${g.notes ? `<h2>Notes</h2><p class="gnotes">${esc(g.notes)}</p>` : ""}
       ${links.length ? `<p class="glinks">${links.join(" ")}</p>` : ""}
+      ${credsHtml(g)}
       <p class="gfoot muted">${g.status === "planned" ? "Planned" : "Logged"} by ${esc(g.created_by?.name ?? "someone")}${edited && g.updated_by?.name ? `, last edited by ${esc(g.updated_by.name)}` : ""}.</p>
       <div class="gactions"></div>
     </div>`;
     addGameActions($(".gactions", main), g, me);
+    wireCreds(main, g);
     void hydrateSymbols(main);
     scrollTo(0, ctx.restoring ? (ctx.scroll ?? 0) : 0);
     if (g.map_string) void drawGameMap(g, $(".game-map", main), ctx);
+  });
+}
+
+// The TI Assistant password (everyone who can see the game) and the Milty admin passkey (creator and admins; the server only sends it to them).
+function credsHtml(g) {
+  const rows = [];
+  if (g.ti_assistant_password)
+    rows.push(`<p class="gcred muted">Password: <code>${esc(g.ti_assistant_password)}</code> <button type="button" class="btn" data-copy="pw">Copy password</button></p>`);
+  if (g.milty_admin_pass)
+    rows.push(`<p class="gcred muted">Milty admin passkey: <code class="pass" hidden>${esc(g.milty_admin_pass)}</code> <button type="button" class="btn" data-show="pass" aria-expanded="false">Show passkey</button> <button type="button" class="btn" data-copy="pass">Copy passkey</button></p>`);
+  return rows.length ? `<div class="gcreds">${rows.join("")}</div>` : "";
+}
+
+function wireCreds(main, g) {
+  const box = $(".gcreds", main);
+  if (!box) return;
+  box.addEventListener("click", async (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.show) {
+      const code = $(".pass", box);
+      code.hidden = !code.hidden;
+      b.textContent = code.hidden ? "Show passkey" : "Hide passkey";
+      b.setAttribute("aria-expanded", String(!code.hidden));
+    } else if (b.dataset.copy) {
+      const isPass = b.dataset.copy === "pass";
+      try {
+        await navigator.clipboard.writeText(isPass ? g.milty_admin_pass : g.ti_assistant_password);
+        toast(isPass ? "Passkey copied." : "Password copied.");
+      } catch { toast("Couldn't copy. Show it and copy it by hand."); }
+    }
   });
 }
 

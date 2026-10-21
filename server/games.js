@@ -46,6 +46,7 @@ const SEAT_BY_CLIENT =
 const seatInsert = (db, byClient, key, s) =>
   db.prepare(byClient ? SEAT_BY_CLIENT : SEAT_BY_ID).bind(key, s.player_id, s.faction, s.color, s.seat_index, s.points, s.is_winner, s.is_speaker_start);
 
+// milty_admin_pass is deliberately left out of the snapshot: history is readable by admins and a revert must never bring back an old passkey.
 // Snapshot of game + seats as they are right now, taken inside the batch so
 // concurrent edits can't record a stale copy.
 export const revisionInsert = (db, gameId, editorId) =>
@@ -54,7 +55,7 @@ export const revisionInsert = (db, gameId, editorId) =>
      SELECT g.id,
             json_object(
               'game', json_object('status', g.status, 'played_on', g.played_on, 'points_to_win', g.points_to_win,
-                'pok', g.pok, 'te', g.te, 'from_memory', g.from_memory, 'date_precision', g.date_precision, 'map_string', g.map_string, 'ti_assistant_url', g.ti_assistant_url,
+                'pok', g.pok, 'te', g.te, 'from_memory', g.from_memory, 'date_precision', g.date_precision, 'map_string', g.map_string, 'ti_assistant_url', g.ti_assistant_url, 'milty_url', g.milty_url, 'ti_assistant_password', g.ti_assistant_password,
                 'notes', g.notes, 'created_by', g.created_by, 'updated_by', g.updated_by,
                 'updated_at', g.updated_at, 'deleted_at', g.deleted_at),
               'seats', json((SELECT json_group_array(json_object('player_id', s.player_id, 'faction', s.faction,
@@ -80,7 +81,7 @@ function attach(games, seatRows) {
   for (const s of seatRows) by.get(s.game_id)?.push(seatOut(s));
   return games.map((g) => ({
     id: g.id, status: g.status, played_on: g.played_on, date_precision: g.date_precision, from_memory: !!g.from_memory, points_to_win: g.points_to_win, pok: !!g.pok, te: !!g.te,
-    map_string: g.map_string, ti_assistant_url: g.ti_assistant_url,
+    map_string: g.map_string, ti_assistant_url: g.ti_assistant_url, milty_url: g.milty_url,
     seats: by.get(g.id),
   }));
 }
@@ -169,11 +170,13 @@ export async function getGame(ctx, id) {
   return json({
     game: {
       id: game.id, status: game.status, played_on: game.played_on, date_precision: game.date_precision, from_memory: !!game.from_memory, points_to_win: game.points_to_win,
-      pok: !!game.pok, te: !!game.te, map_string: game.map_string, ti_assistant_url: game.ti_assistant_url,
+      pok: !!game.pok, te: !!game.te, map_string: game.map_string, ti_assistant_url: game.ti_assistant_url, milty_url: game.milty_url, ti_assistant_password: game.ti_assistant_password,
       notes: game.notes, created_by: who(game.created_by), updated_by: who(game.updated_by),
       created_at: game.created_at, updated_at: game.updated_at, deleted_at: game.deleted_at,
       seats: seats.map((s) => (ctx.player.role === "admin" ? { ...seatOut(s), claimable: !!join?.claimable.has(s.player_id) } : seatOut(s))),
       ...(ctx.player.role === "admin" ? { join_link: join?.link ?? null } : {}),
+      // Stored in plain text because we have to show it back. It only unlocks undo/regenerate on one Milty draft. Creator and admins only; absent for everyone else.
+      ...(canDelete(ctx.player, game) ? { milty_admin_pass: game.milty_admin_pass } : {}),
       can_edit: canEdit(ctx.player, game, seats),
       can_delete: canDelete(ctx.player, game),
     },
@@ -197,9 +200,9 @@ export async function createGame(ctx) {
   try {
     await db.batch([
       db.prepare(
-        `INSERT INTO games (client_id, status, played_on, date_precision, from_memory, points_to_win, pok, te, map_string, ti_assistant_url, notes, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(g.client_id, g.status, g.played_on, g.date_precision, g.from_memory ? 1 : 0, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes, me, me),
+        `INSERT INTO games (client_id, status, played_on, date_precision, from_memory, points_to_win, pok, te, map_string, ti_assistant_url, milty_url, milty_admin_pass, ti_assistant_password, notes, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(g.client_id, g.status, g.played_on, g.date_precision, g.from_memory ? 1 : 0, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.milty_url, g.milty_admin_pass, g.ti_assistant_password, g.notes, me, me),
       ...g.seats.map((s) => seatInsert(db, true, g.client_id, s)),
     ]);
   } catch (err) {
@@ -225,9 +228,11 @@ export async function updateGame(ctx, id) {
   await db.batch([
     revisionInsert(db, id, ctx.player.id),
     db.prepare(
-      `UPDATE games SET status = ?, played_on = ?, date_precision = ?, from_memory = ?, points_to_win = ?, pok = ?, te = ?, map_string = ?, ti_assistant_url = ?,
+      `UPDATE games SET status = ?, played_on = ?, date_precision = ?, from_memory = ?, points_to_win = ?, pok = ?, te = ?, map_string = ?, ti_assistant_url = ?, milty_url = ?, ti_assistant_password = ?,
+              milty_admin_pass = CASE WHEN ? IS NULL THEN NULL WHEN ? THEN ? ELSE milty_admin_pass END,
               notes = ?, updated_by = ?, updated_at = ? WHERE id = ?`
-    ).bind(g.status, g.played_on, g.date_precision, g.from_memory ? 1 : 0, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.notes,
+    ).bind(g.status, g.played_on, g.date_precision, g.from_memory ? 1 : 0, g.points_to_win, g.pok, g.te, g.map_string, g.ti_assistant_url, g.milty_url, g.ti_assistant_password,
+      g.milty_url, canDelete(ctx.player, found.game) ? 1 : 0, g.milty_admin_pass, g.notes,
       ctx.player.id, nowIso(), id),
     db.prepare("DELETE FROM seats WHERE game_id = ?").bind(id),
     ...g.seats.map((s) => seatInsert(db, false, id, s)),

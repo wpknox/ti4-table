@@ -16,8 +16,8 @@ import { hydrateSymbols } from "../factions.js";
 import { get, post, put } from "./api.js";
 import { factionName } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
-import { tabs, todayLocal, safeTiLink, mapHref, sym, errorBlock } from "./ui.js";
-import { checkGameBody } from "./validate.js";
+import { tabs, todayLocal, safeTiLink, safeMiltyLink, mapHref, sym, errorBlock } from "./ui.js";
+import { checkGameBody, PAIR_TI, PAIR_MILTY } from "./validate.js";
 import {
   MAX_SEATS, newSeat, blank, pickWinner, modeOf, usableDraft, fitSeats, fromGame, sanitiseDraft, toBody,
   fillFromTi, applyTiScores, sortByPosition,
@@ -99,6 +99,9 @@ class Form {
   get memory() { return this.st.from_memory && !this.plan && !this.finish; }
 
   // Filling from TI Assistant is for logging a new finished game.
+  // The passkey is only sent to the creator and admins; a new game is always its creator's.
+  get showPass() { return !this.game || "milty_admin_pass" in this.game; }
+
   get canFill() { return !this.editId && !this.plan && !this.finish; }
 
   get title() {
@@ -293,8 +296,12 @@ class Form {
       a.hidden = !t.value.trim();
       a.href = mapHref(t.value.trim());
     } else if (t.id === "f-ti") st.ti_assistant_url = t.value;
+    else if (t.id === "f-ti-pw") st.ti_assistant_password = t.value;
+    else if (t.id === "f-milty") st.milty_url = t.value;
+    else if (t.id === "f-milty-pass") st.milty_admin_pass = t.value;
     else if (t.id === "f-notes") st.notes = t.value;
     else return;
+    this.pairNotes();
     this.persist();
   }
 
@@ -353,6 +360,14 @@ class Form {
     $(`#i-${s.key}`, this.form)?.focus(); // the card may have moved; keep the place
   }
 
+  // Says right by the field when a password or passkey has no link to go with.
+  pairNotes() {
+    const st = this.st;
+    const show = (id, msg) => { const p = $(id, this.form); if (p) { p.textContent = msg; p.hidden = !msg; } };
+    show("#pair-ti", st.ti_assistant_password.trim() && !st.ti_assistant_url.trim() ? PAIR_TI : "");
+    show("#pair-milty", st.milty_admin_pass.trim() && !st.milty_url.trim() ? PAIR_MILTY : "");
+  }
+
   // Text inputs that are drawn from state are re-created on redraw, so the
   // free-text fields are read into state first.
   syncText() {
@@ -361,6 +376,9 @@ class Form {
     if (date) st.played_on = dateFromInput(st.date_precision, date.value, st.played_on);
     st.map_string = $("#f-map", this.form)?.value ?? st.map_string;
     st.ti_assistant_url = $("#f-ti", this.form)?.value ?? st.ti_assistant_url;
+    st.ti_assistant_password = $("#f-ti-pw", this.form)?.value ?? st.ti_assistant_password;
+    st.milty_url = $("#f-milty", this.form)?.value ?? st.milty_url;
+    st.milty_admin_pass = $("#f-milty-pass", this.form)?.value ?? st.milty_admin_pass;
     st.notes = $("#f-notes", this.form)?.value ?? st.notes;
   }
 
@@ -529,6 +547,7 @@ class Form {
 
   // ── Save ──
   validate() {
+    this.pairNotes();
     const st = this.st;
     if (!st.played_on) return "Pick the date the game was played.";
     for (const [i, s] of st.seats.entries()) {
@@ -538,6 +557,10 @@ class Form {
     if (this.memory && !pickWinner(st).key) return "Pick who won.";
     if (!this.plan && pickWinner(st).tied) return "Pick the winner before saving.";
     if (st.ti_assistant_url.trim() && !safeTiLink(st.ti_assistant_url.trim())) return "The TI Assistant link must be an https://ti-assistant.com link.";
+    if (st.ti_assistant_password.trim() && !st.ti_assistant_url.trim()) return PAIR_TI;
+    if (st.milty_admin_pass.trim() && !st.milty_url.trim()) return PAIR_MILTY;
+    if (st.milty_url.trim() && !safeMiltyLink(st.milty_url.trim())) return "The Milty link must be an https://milty.shenanigans.be link.";
+    if (st.milty_admin_pass.trim() && !/^[0-9a-f]{8,64}$/i.test(st.milty_admin_pass.trim())) return "A Milty admin passkey is letters a–f and numbers, like 3f9a1c0b7d2e4a6f.";
     return "";
   }
 

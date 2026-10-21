@@ -70,6 +70,11 @@ a.btn-primary { color: var(--void); }
 .gseat.is-winner .gfaction .fsym { color: var(--resource); }
 .gplayer { color: var(--dust); font-size: var(--t-s); overflow-wrap: anywhere; }
 .gnotes { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 40rem; }
+.g-form .hint { margin: 6px 0 0; font-size: var(--t-s); }
+.gcreds { margin: 0 0 16px; }
+.gcred { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; }
+.gcred code { font-family: var(--display); font-stretch: 110%; overflow-wrap: anywhere; }
+.gcred .btn { min-height: 44px; }
 .glinks { display: flex; gap: 8px 20px; flex-wrap: wrap; margin: 16px 0; }
 .glinks a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
 .gfoot { margin: 16px 0; font-size: var(--t-s); }

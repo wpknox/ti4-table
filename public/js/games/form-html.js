@@ -30,6 +30,7 @@ export function formHtml(f) {
       <h2>More about the game</h2>
       ${mapFieldHtml(f)}
       ${f.canFill ? "" : tiLinkField(st)}
+      ${miltyFields(f)}
       <div class="field"><label for="f-notes">Notes <span class="muted">(optional)</span></label>
         <textarea id="f-notes" rows="3">${esc(st.notes)}</textarea></div>
 
@@ -40,7 +41,21 @@ export function formHtml(f) {
 }
 
 const tiLinkField = (st) => `<div class="field"><label for="f-ti">TI Assistant link <span class="muted">(optional)</span></label>
-        <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://" value="${esc(st.ti_assistant_url)}"></div>`;
+        <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://" value="${esc(st.ti_assistant_url)}"></div>
+      ${tiPasswordField(st)}`;
+
+const tiPasswordField = (st) => `<div class="field"><label for="f-ti-pw">TI Assistant password <span class="muted">(optional)</span></label>
+        <input id="f-ti-pw" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="100" value="${esc(st.ti_assistant_password)}">
+        <p class="muted hint">Optional. If the TI Assistant game asks for a password, put it here so everyone can find it. Needs the link above.</p>
+        <p class="error pair-err" id="pair-ti" role="status" hidden></p></div>`;
+
+// The Milty draft link, and its admin passkey for the game's creator and admins only (the server withholds it from everyone else).
+const miltyFields = (f) => `<div class="field"><label for="f-milty">Milty draft link <span class="muted">(optional)</span></label>
+        <input id="f-milty" type="url" inputmode="url" autocomplete="off" placeholder="https://milty.shenanigans.be/d/…" value="${esc(f.st.milty_url)}"></div>
+      ${f.showPass ? `<div class="field"><label for="f-milty-pass">Milty admin passkey <span class="muted">(optional)</span></label>
+        <input id="f-milty-pass" type="text" inputmode="text" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="64" value="${esc(f.st.milty_admin_pass)}">
+        <p class="muted hint">Optional. Only you and admins can see this. Paste it into Restore session on the Milty draft page. Needs the link above.</p>
+        <p class="error pair-err" id="pair-milty" role="status" hidden></p></div>` : ""}`;
 
 // New finished games only: fill the form from a TI Assistant link or a downloaded file.
 // The link field is the game's own TI Assistant link, so it is not shown twice.
@@ -49,6 +64,7 @@ function tiFillHtml(f) {
       <div class="field"><label for="f-ti">TI Assistant link <span class="muted">(optional)</span></label>
         <input id="f-ti" type="url" inputmode="url" autocomplete="off" placeholder="https://ti-assistant.com/en/game/…" value="${esc(f.st.ti_assistant_url)}">
         <button type="button" class="btn" id="ti-fill">Fill from TI Assistant</button></div>
+      ${tiPasswordField(f.st)}
       <div class="field"><label for="f-ti-file">Or load a TI Assistant file</label>
         <input id="f-ti-file" type="file" accept="application/json,.json">
         <button type="button" class="btn" id="ti-scores" hidden>Get the final scores from TI Assistant</button></div>

@@ -716,6 +716,72 @@ async function joinChecks({ admin, e1, e2, reader }) {
   r = await anon("POST", "/api/join/preview", {});
   check("Join: preview with no body -> 400", r.status === 400, r.status);
 
+  // ── Milty link, admin passkey and TI Assistant password ───
+  const mids = [e1.id, e2.id, reader.id];
+  const MURL = "https://milty.shenanigans.be/d/abc123";
+  const TURL = "https://ti-assistant.com/en/game/AbC123";
+  const mbad = async (name, over) => {
+    const res = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody(mids, over) });
+    check(`Milty: ${name} -> 400`, res.status === 400, `${res.status} ${JSON.stringify(res.data)}`);
+  };
+  await mbad("a non-Milty host", { milty_url: "https://example.com/d/abc" });
+  await mbad("an http: link", { milty_url: "http://milty.shenanigans.be/d/abc" });
+  await mbad("a link with credentials", { milty_url: "https://u:p@milty.shenanigans.be/d/abc" });
+  await mbad("a passkey with non-hex characters", { milty_admin_pass: "zzzzzzzzzzzzzzzz" });
+  await mbad("a passkey that is too short", { milty_admin_pass: "abc" });
+  await mbad("a 101-character TI Assistant password", { ti_assistant_password: "x".repeat(101) });
+  await mbad("a TI Assistant password with a control character", { ti_assistant_password: "ab\ncd" });
+  r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody(mids, { ti_assistant_url: TURL, milty_url: MURL, milty_admin_pass: "3f9a1c0b7d2e4a6f", ti_assistant_password: "  open sesame  " }) });
+  const GM = r.data?.id;
+  check("Milty: create with link, passkey and password -> 201", r.status === 201 && Number.isInteger(GM), JSON.stringify(r.data));
+  let gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: creator sees link, passkey and (trimmed) password", gm.milty_url === MURL && gm.milty_admin_pass === "3f9a1c0b7d2e4a6f" && gm.ti_assistant_password === "open sesame", JSON.stringify(gm));
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e2.cookie })).data.game;
+  check("Milty: a seated editor who isn't the creator gets no passkey key, but sees link and password",
+    !("milty_admin_pass" in gm) && gm.milty_url === MURL && gm.ti_assistant_password === "open sesame", JSON.stringify(gm));
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: admin.cookie })).data.game;
+  check("Milty: an admin sees the passkey", gm.milty_admin_pass === "3f9a1c0b7d2e4a6f");
+  const mlist = await api("GET", "/api/games?full=1", { cookie: admin.cookie });
+  const mrow = mlist.data.games.find((g) => g.id === GM);
+  check("Milty: the list has the link but never the passkey or password", mrow?.milty_url === MURL && !("milty_admin_pass" in mrow) && !("ti_assistant_password" in mrow), JSON.stringify(mrow));
+  const mput = (who, over) => api("PUT", `/api/games/${GM}`, { cookie: who.cookie, body: gameBody(mids, { ti_assistant_url: TURL, milty_url: MURL, ti_assistant_password: "open sesame", ...over }) });
+  r = await mput(e2, { milty_admin_pass: "deadbeefdeadbeef" });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: a seated non-creator PUT with a passkey leaves the stored one unchanged", r.status === 200 && gm.milty_admin_pass === "3f9a1c0b7d2e4a6f", `${r.status} ${gm.milty_admin_pass}`);
+  r = await mput(e2, { milty_admin_pass: null });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: a seated non-creator PUT with null leaves the stored one unchanged", r.status === 200 && gm.milty_admin_pass === "3f9a1c0b7d2e4a6f", `${r.status} ${gm.milty_admin_pass}`);
+  const mrevs = (await api("GET", `/api/admin/games/${GM}/revisions`, { cookie: admin.cookie })).data.revisions;
+  check("Milty: revision JSON has the link and password but no passkey",
+    mrevs.length >= 2 && mrevs.every((v) => !("milty_admin_pass" in v.data.game) && v.data.game.milty_url === MURL && v.data.game.ti_assistant_password === "open sesame"), JSON.stringify(mrevs[0]?.data?.game));
+  r = await mput(e1, { milty_admin_pass: "aaaaaaaaaaaaaaaa", ti_assistant_password: null });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: the creator can change the passkey and clear the password", r.status === 200 && gm.milty_admin_pass === "aaaaaaaaaaaaaaaa" && gm.milty_url === MURL && gm.ti_assistant_password === null, JSON.stringify(gm));
+  const oldest = mrevs[mrevs.length - 1];
+  r = await api("POST", `/api/admin/games/${GM}/revert`, { cookie: admin.cookie, body: { revision_id: oldest.id } });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: revert restores link and password but leaves the current passkey alone",
+    r.status === 200 && gm.milty_url === MURL && gm.ti_assistant_password === "open sesame" && gm.milty_admin_pass === "aaaaaaaaaaaaaaaa", JSON.stringify(gm));
+  r = await mput(e1, { milty_admin_pass: null });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: the creator PUTs null and the passkey is cleared", r.status === 200 && gm.milty_admin_pass === null, JSON.stringify(gm));
+  // Every field is optional; a password or passkey needs its link.
+  const solo = [{ ti_assistant_url: TURL }, { milty_url: MURL }];
+  const soloRes = [];
+  for (const over of solo) soloRes.push((await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody(mids, over) })).status);
+  check("Milty: a TI Assistant link with no password and a Milty link with no passkey both save", soloRes.every((x) => x === 201), soloRes.join());
+  await mbad("a TI Assistant password with no link", { ti_assistant_password: "pw only" });
+  await mbad("a Milty passkey with no link", { milty_admin_pass: "0123456789abcdef" });
+  r = await mput(e1, { milty_admin_pass: "bbbbbbbbbbbbbbbb" });
+  r = await mput(e2, { milty_url: null });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: a non-creator clearing the Milty link also clears the stored passkey", r.status === 200 && gm.milty_url === null && gm.milty_admin_pass === null, `${r.status} ${JSON.stringify(gm)}`);
+  // A snapshot from before migration 0006 has no milty keys at all.
+  sql(`UPDATE game_revisions SET data = json_remove(json_remove(data, '$.game.milty_url'), '$.game.ti_assistant_password') WHERE id = ${oldest.id}`);
+  r = await api("POST", `/api/admin/games/${GM}/revert`, { cookie: admin.cookie, body: { revision_id: oldest.id } });
+  gm = (await api("GET", `/api/games/${GM}`, { cookie: e1.cookie })).data.game;
+  check("Milty: reverting to a snapshot from before 0006 gives null link and password", r.status === 200 && gm.milty_url === null && gm.ti_assistant_password === null, JSON.stringify(gm));
+
 }
 
 try {

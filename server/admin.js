@@ -129,6 +129,9 @@ export async function revertGame(ctx, id) {
          te = json_extract(r.data, '$.game.te'),
          map_string = json_extract(r.data, '$.game.map_string'),
          ti_assistant_url = json_extract(r.data, '$.game.ti_assistant_url'),
+         milty_admin_pass = CASE WHEN json_extract(r.data, '$.game.milty_url') IS NULL THEN NULL ELSE milty_admin_pass END,
+         milty_url = json_extract(r.data, '$.game.milty_url'),
+         ti_assistant_password = json_extract(r.data, '$.game.ti_assistant_password'),
          notes = json_extract(r.data, '$.game.notes'),
          deleted_at = json_extract(r.data, '$.game.deleted_at'),
          updated_by = ?, updated_at = ?

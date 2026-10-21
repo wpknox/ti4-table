@@ -23,6 +23,9 @@ export const blank = () => ({
   te: false,
   map_string: "",
   ti_assistant_url: "",
+  ti_assistant_password: "",
+  milty_url: "",
+  milty_admin_pass: "",
   notes: "",
   seats: Array.from({ length: START_SEATS }, newSeat),
   winner: null, // seat key the user picked by hand, or null for "top score"
@@ -78,7 +81,7 @@ export function fromGame(g) {
   return {
     client_id: null, played_on: g.played_on, from_memory: !!g.from_memory, date_precision: g.date_precision ?? "day",
     points_to_win: g.points_to_win, pok: g.pok, te: g.te,
-    map_string: g.map_string ?? "", ti_assistant_url: g.ti_assistant_url ?? "", notes: g.notes ?? "",
+    map_string: g.map_string ?? "", ti_assistant_url: g.ti_assistant_url ?? "", ti_assistant_password: g.ti_assistant_password ?? "", milty_url: g.milty_url ?? "", milty_admin_pass: g.milty_admin_pass ?? "", notes: g.notes ?? "",
     seats, winner: w >= 0 ? seats[w].key : null, speaker: sp >= 0 ? seats[sp].key : null,
   };
 }
@@ -108,6 +111,7 @@ export function sanitiseDraft(d, fallback) {
     points_to_win: int(d.points_to_win, LIMITS.minVp, LIMITS.maxVp, 10),
     pok: d.pok !== false, te: d.te === true,
     map_string: str(d.map_string).slice(0, LIMITS.mapString), ti_assistant_url: str(d.ti_assistant_url).slice(0, LIMITS.tiUrl),
+    ti_assistant_password: str(d.ti_assistant_password).slice(0, 100), milty_url: str(d.milty_url).slice(0, LIMITS.tiUrl), milty_admin_pass: str(d.milty_admin_pass).slice(0, 64),
     notes: str(d.notes).slice(0, LIMITS.notes),
     seats, winner: at(d.winner_i), speaker: at(d.speaker_i),
   };
@@ -187,6 +191,9 @@ export function toBody(st, { plan, editId }) {
     te: st.te,
     map_string: st.map_string.trim() || null,
     ti_assistant_url: st.ti_assistant_url.trim() || null,
+    ti_assistant_password: st.ti_assistant_password.trim() || null,
+    milty_url: st.milty_url.trim() || null,
+    milty_admin_pass: st.milty_admin_pass.trim() || null,
     notes: st.notes,
     seats: st.seats.map((s) => ({
       player_id: s.player_id, faction: s.faction || null, color: s.color || null,

@@ -306,6 +306,31 @@ async function run() {
     check("Form shows an error and the game is unchanged", msg.length > 0 && new URL(page.url()).pathname.endsWith("/edit") && !g.data?.game?.ti_assistant_url, `${msg} / ${g.data?.game?.ti_assistant_url}`);
   });
 
+  // ── Milty link, passkey and TI Assistant password ───
+  await step("Milty and TI Assistant password", async () => {
+    await go(`/games/${gameId}/edit`);
+    await page.fill("#f-ti", ""); // the hostile-link draft is restored
+    await page.fill("#f-ti-pw", "table pw");
+    check("A password with no link shows its note by the field", await page.locator("#pair-ti").isVisible());
+    await page.fill("#f-milty-pass", "3f9a1c0b7d2e4a6f");
+    check("A passkey with no link shows its note by the field", await page.locator("#pair-milty").isVisible());
+    await page.click("#save");
+    await page.waitForSelector("#form-err:not([hidden])", { timeout: 5000 });
+    check("Saving without the links is stopped with the plain message", /Add the TI Assistant link/.test(await page.locator("#form-err").innerText()));
+    await page.fill("#f-ti", "https://ti-assistant.com/en/game/AbC123");
+    await page.fill("#f-milty", "https://milty.shenanigans.be/d/abc123");
+    await page.click("#save");
+    await page.waitForURL(new RegExp(`/games/${gameId}$`), { timeout: 10000 });
+    await page.waitForSelector(".gseat");
+    check("The game page offers the Milty draft", (await page.getByRole("link", { name: "Open the Milty draft" }).count()) === 1);
+    check("The creator sees Copy passkey and Copy password", (await page.getByRole("button", { name: "Copy passkey" }).count()) === 1 && (await page.getByRole("button", { name: "Copy password" }).count()) === 1);
+    check("The passkey is hidden until Show passkey", !(await page.locator(".gcred code.pass").isVisible()));
+    await page.getByRole("button", { name: "Show passkey" }).click();
+    check("Show passkey reveals it", (await page.locator(".gcred code.pass").innerText()) === "3f9a1c0b7d2e4a6f");
+    check("No horizontal scroll with the new block at 390px", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await page.evaluate(() => localStorage.clear());
+  });
+
   // ── Join links ───
   await step("Join link", async () => {
     await go(`/games/${gameId}`);
