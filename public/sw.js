@@ -5,11 +5,10 @@
 //
 // Bump VERSION when the precache list changes. API calls are never cached.
 
-const VERSION = "v14";
+const VERSION = "v15";
 const CACHE = `ti4table-${VERSION}`;
 const PRECACHE = [
   "/",
-  "/index.html",
   "/css/base.css",
   "/css/rules.css",
   "/css/map.css",
@@ -59,6 +58,12 @@ const PRECACHE = [
   ].map((f) => `/img/factions/F_${f}.svg`),
 ];
 
+// A copy of a response without its redirected flag, so it's safe to serve for any request.
+function unredirected(res) {
+  if (!res.redirected) return res;
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
@@ -77,16 +82,19 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
 
-  // Every app route (/rules/R_movement…) is the same shell.
-  const key = req.mode === "navigate" ? "/index.html" : req;
+  // Every app route (/rules/R_movement…) is the same shell. It's cached as "/":
+  // Pages answers /index.html with a 308 to "/", and a redirected response
+  // can't be served for a navigation ("response served by service worker has redirections").
+  const key = req.mode === "navigate" ? "/" : req;
 
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(key, { ignoreSearch: req.mode === "navigate" });
-      const fresh = fetch(req.mode === "navigate" ? "/index.html" : req)
+      const fresh = fetch(req.mode === "navigate" ? "/" : req)
         .then((res) => {
-          if (res.ok) cache.put(key, res.clone());
-          return res;
+          const clean = unredirected(res);
+          if (clean.ok) cache.put(key, clean.clone());
+          return clean;
         })
         .catch(() => cached ?? Response.error());
       if (cached) {
