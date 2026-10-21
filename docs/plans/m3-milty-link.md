@@ -9,6 +9,11 @@ The owner makes maps on Milty draft (https://milty.shenanigans.be). A game gets 
 
 Milty facts, from its source at github.com/shenanigans-be/miltydraft: the draft route is `/d/{id}`, and the admin secret is `bin2hex(random_bytes(8))`, i.e. 16 lowercase hex characters.
 
+## Owner rules added during the build (2026-10-20)
+
+- All four fields are optional, but a password or passkey needs its link. A TI Assistant password with no TI Assistant link gives 400 `PAIR_TI`, and a Milty passkey with no Milty link gives 400 `PAIR_MILTY`. Both messages come from the shared validator and also show inline in the form.
+- Clearing the Milty link, whether by an edit or a revert, clears the stored passkey too, even when the editor can't see it.
+
 ## Data
 
 `migrations/0006_milty.sql` (number it after whatever the last migration is when you start; `0005_join_links.sql` should exist):

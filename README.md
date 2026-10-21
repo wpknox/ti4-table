@@ -41,9 +41,10 @@ On iPhone the home-screen app keeps its own sign-in, separate from Safari. If yo
 
 ### 1. Plan the game
 
-1. Make the map in [Milty draft](https://milty.shenanigans.be) (or anywhere that gives you a map string).
-2. Paste the map string into **Map**, check the seats, then tap **Plan a game on this map**.
-3. Pick a player for each seat, and a faction if you know it. Friends without an account yet can be added by name as guests.
+- **From Games:** tap **Plan a game**. Add a seat per player. The map string is optional, so you can add it later with **Edit plan**.
+- **From a map:** make the map in [Milty draft](https://milty.shenanigans.be) (or anywhere that gives you a map string), paste it into **Map**, check the seats, then tap **Plan a game on this map**. You get one seat per map seat.
+
+Pick a player for each seat, and a faction if you know it. Friends without an account yet can be added by name as guests.
 
 ### 2. Link TI Assistant and Milty (all optional)
 
