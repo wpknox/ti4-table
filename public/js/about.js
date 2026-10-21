@@ -6,6 +6,7 @@ export function renderAbout(url, main) {
   main.innerHTML = `<div class="about">
     <h1>About and credits</h1>
     <p>This is an unofficial fan site. It is free, non-commercial and has no ads or donations. It is not affiliated with or endorsed by Fantasy Flight Games or Asmodee.</p>
+    <p>The code is open source on ${ext("https://github.com/wpknox/ti4-table", "GitHub")}, under GPL-3.0.</p>
 
     <h2>Faction symbols</h2>
     <p>The faction symbols are artwork from <i>Twilight Imperium: Fourth Edition</i>, © Fantasy Flight Games. They are used under the ${ext("https://www.zmangames.com/ip-policy/", "Asmodee fan content policy")}, for a free, non-commercial fan site. That policy is not a licence, and the art will be removed promptly if its owner asks.</p>
@@ -27,6 +28,15 @@ export function renderAbout(url, main) {
     <h2>Rules text</h2>
     <p>Rules text comes from ${ext("https://github.com/wpknox/tirules-search", "tirules-search")}, a fork of ${ext("https://github.com/dangothemango/tirules", "dangothemango/tirules")} by dangothemango and BradleyΣ. The highlighted rulings are official rulings from Dane (the rules designer’s team), not part of the Living Rules Reference. <i>Twilight Imperium</i> is © Fantasy Flight Games. This site isn’t affiliated with them.</p>
     <p>The rules content is GPL-3.0, so this site’s code is GPL-3.0.</p>
+
+    <h2>Map tile data</h2>
+    <p>Planet values, tech skips, anomalies, wormholes and hyperlane lanes were converted from the ${ext("https://github.com/darrellanderson/TI4-TTPG-TS", "TI4 Tabletop Playground mod")} and cross-checked against ${ext("https://github.com/AsyncTI4/TI4_map_generator_bot", "AsyncTI4")}, which also supplied the legendary planet ability text. Both are released under the Unlicense, which covers their code and data but not their art.</p>
+
+    <h2>TI Assistant and Milty draft</h2>
+    <p>Games can link to ${ext("https://ti-assistant.com", "TI Assistant")} and ${ext("https://milty.shenanigans.be", "Milty draft")}. Given a TI Assistant link or data file, the game form reads that game’s seats, factions and final scores from TI Assistant’s public pages. Neither project’s code is used here.</p>
+
+    <h2>Fonts</h2>
+    <p>${ext("https://fonts.google.com/specimen/Saira", "Saira")} by Omnibus-Type and ${ext("https://fonts.google.com/specimen/Atkinson+Hyperlegible+Next", "Atkinson Hyperlegible Next")} by the Braille Institute, both under the SIL Open Font License 1.1.</p>
   </div>`;
   scrollTo(0, 0);
 }
