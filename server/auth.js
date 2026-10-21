@@ -4,7 +4,7 @@ import { HttpError, json, readJson } from "./http.js";
 // Crockford base32: no I, L, O or U.
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const DAY = 86400000;
-const SESSION_DAYS = 180;
+export const SESSION_DAYS = 180;
 
 export const nowIso = (ms = Date.now()) => new Date(ms).toISOString().slice(0, 19) + "Z";
 
@@ -44,12 +44,12 @@ function readCookie(request, name) {
   return null;
 }
 
-function sessionCookie(url, token, maxAge) {
+export function sessionCookie(url, token, maxAge) {
   const secure = url.protocol === "https:" ? "; Secure" : "";
   return `${cookieName(url)}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-const SESSION_MAX_AGE = SESSION_DAYS * DAY / 1000;
+export const SESSION_MAX_AGE = SESSION_DAYS * DAY / 1000;
 
 // ── Current player ───
 // One indexed read. Sets ctx.player (null if signed out, or role none/archived)
@@ -87,14 +87,14 @@ export async function me(ctx) {
   return json({ player: ctx.player });
 }
 
-const BAD_CODE = "That code didn't work. Ask for a new one.";
+export const BAD_CODE = "That code didn't work. Ask for a new one.";
 
 // Failed redeems per client: 10 in 15 minutes, then 429. Keyed by a hash of the
 // IP (CF-Connecting-IP; absent on localhost, so "local"). Raw IPs are never stored.
 const MAX_FAILS = 10;
 const FAIL_WINDOW_MS = 15 * 60000;
 
-async function failRedeem(ctx, ipHash) {
+export async function failRedeem(ctx, ipHash) {
   const db = ctx.env.DB;
   await db.batch([
     db.prepare("DELETE FROM redeem_attempts WHERE attempted_at < ?").bind(nowIso(Date.now() - FAIL_WINDOW_MS)),
@@ -103,13 +103,19 @@ async function failRedeem(ctx, ipHash) {
   throw new HttpError(400, BAD_CODE);
 }
 
+// Hashes the client's IP and throws 429 if it has failed too often. Shared with join links.
+export async function lockoutGate(ctx) {
+  const ipHash = await sha256Hex(ctx.request.headers.get("cf-connecting-ip") || "local");
+  const fails = await ctx.env.DB.prepare("SELECT COUNT(*) AS n FROM redeem_attempts WHERE ip_hash = ? AND attempted_at > ?")
+    .bind(ipHash, nowIso(Date.now() - FAIL_WINDOW_MS)).first();
+  if (fails.n >= MAX_FAILS) throw new HttpError(429, "Too many wrong codes. Try again in a few minutes.");
+  return ipHash;
+}
+
 export async function redeem(ctx) {
   const body = await readJson(ctx.request);
   const db = ctx.env.DB;
-  const ipHash = await sha256Hex(ctx.request.headers.get("cf-connecting-ip") || "local");
-  const fails = await db.prepare("SELECT COUNT(*) AS n FROM redeem_attempts WHERE ip_hash = ? AND attempted_at > ?")
-    .bind(ipHash, nowIso(Date.now() - FAIL_WINDOW_MS)).first();
-  if (fails.n >= MAX_FAILS) throw new HttpError(429, "Too many wrong codes. Try again in a few minutes.");
+  const ipHash = await lockoutGate(ctx);
   const code = normaliseCode(body.code);
   if (!code) return failRedeem(ctx, ipHash);
   const now = nowIso();

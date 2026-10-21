@@ -306,6 +306,61 @@ async function run() {
     check("Form shows an error and the game is unchanged", msg.length > 0 && new URL(page.url()).pathname.endsWith("/edit") && !g.data?.game?.ti_assistant_url, `${msg} / ${g.data?.game?.ti_assistant_url}`);
   });
 
+  // ── Join links ───
+  await step("Join link", async () => {
+    await go(`/games/${gameId}`);
+    await page.getByRole("button", { name: "Make join link" }).click();
+    await page.waitForSelector("#join-url");
+    const link = await page.inputValue("#join-url");
+    check("Admin sees Make join link and gets a /games/claim# link", /\/games\/claim#[0-9A-Z]{5}-[0-9A-Z]{5}$/.test(link), link);
+    check("The page says who can use it, and offers Stop", /claim a guest seat in this game until/.test(await page.locator(".gjoin").innerText()) && (await page.getByRole("button", { name: "Stop join links" }).count()) === 1);
+
+    // A signed-out friend on a phone.
+    const friend = await browser.newContext({ viewport: PHONE, colorScheme: "dark" });
+    const fp = await friend.newPage();
+    const fseen = [];
+    fp.on("console", (m) => { if (m.type() === "error") fseen.push(m.text()); });
+    fp.on("pageerror", (e) => fseen.push(`pageerror: ${e.message}`));
+    try {
+      await fp.goto(link);
+      await fp.waitForSelector(".claim-seat", { timeout: 15000 });
+      const labels = await fp.locator(".claim-seat").allInnerTexts();
+      check("The claim page lists the game's guests only", labels.length === 2 && labels.some((t) => t.includes("Guest One")) && labels.some((t) => t.includes(XSS_NAME)), JSON.stringify(labels));
+      check("The claim buttons are at least 44px tall", (await fp.locator(".claim-seat").first().boundingBox()).height >= 44);
+      check("No horizontal scroll on the claim page at 390px", await fp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+      check("Hostile guest name is literal text", (await fp.evaluate(() => window.__xss)) === undefined && (await fp.locator("main img[src=x]").count()) === 0);
+      await fp.locator(".claim-seat", { hasText: "Guest One" }).click();
+      check("Tapping a seat asks to confirm", /Sign in as Guest One\? You can't undo this yourself\./.test(await fp.locator(".claim-confirm").innerText()));
+      await fp.getByRole("button", { name: "Back" }).click();
+      await fp.locator(".claim-seat", { hasText: "Guest One" }).click();
+      await fp.getByRole("button", { name: "Yes, I'm Guest One" }).click();
+      await fp.waitForURL(/\/games\/\d+$/, { timeout: 10000 });
+      await fp.waitForSelector(".gseat");
+      const who = await fp.evaluate(async () => (await (await fetch("/api/me")).json()).player);
+      check("The friend lands on the game page signed in as Guest One", who?.name === "Guest One" && who.role === "editor" && new URL(fp.url()).pathname === `/games/${gameId}`, JSON.stringify(who));
+      check("The code is gone from the address bar", new URL(fp.url()).hash === "");
+      check("Admin-only controls stay hidden from the friend", (await fp.locator(".gjoin, .gnote").count()) === 0);
+    } finally {
+      check("Join link: no console errors for the friend", fseen.length === 0, fseen.join(" | ").slice(0, 300));
+      await friend.close();
+    }
+
+    const stranger = await browser.newContext({ viewport: PHONE });
+    const sp = await stranger.newPage();
+    try {
+      await sp.goto(`${BASE}/games/claim#ABCDE-FGHJK`);
+      await sp.waitForSelector("h1");
+      check("A bad code says the link doesn't work", /doesn't work/.test(await sp.locator("h1").innerText()) && (await sp.locator('a[href="/games/join"]').count()) === 1);
+      await sp.goto(`${BASE}/games/claim`);
+      await sp.waitForSelector("h1");
+      check("No code says the link doesn't work", /doesn't work/.test(await sp.locator("h1").innerText()));
+    } finally {
+      await stranger.close();
+    }
+    await go(`/games/${gameId}`);
+    await page.getByRole("button", { name: "Stop join links" }).waitFor({ timeout: 5000 }).catch(() => {});
+  });
+
   // ── Layout pass ───
   const routes = [
     "/rules", "/rules?q=retreat", "/rules/R_movement", mapUrl(), mapUrl("&view=art"), "/about",

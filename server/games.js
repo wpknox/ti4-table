@@ -1,5 +1,6 @@
 import { HttpError, json, readJson } from "./http.js";
 import { requireRole, nowIso } from "./auth.js";
+import { adminJoinInfo } from "./join.js";
 import { checkGameBody } from "../public/js/games/validate.js";
 
 // ── Rights ───
@@ -162,6 +163,8 @@ export async function getGame(ctx, id) {
   if (!found || (found.game.deleted_at && ctx.player?.role !== "admin")) throw new HttpError(404, "No such game.");
   const { game, seats } = found;
   const names = await db.prepare("SELECT id, name FROM players WHERE id IN (?, ?)").bind(game.created_by, game.updated_by).all();
+  // Admins also learn which seats a join link could hand out, and whether a live link exists.
+  const join = ctx.player.role === "admin" && !game.deleted_at ? await adminJoinInfo(db, id) : null;
   const who = (pid) => ({ id: pid, name: names.results.find((p) => p.id === pid)?.name ?? null });
   return json({
     game: {
@@ -169,7 +172,8 @@ export async function getGame(ctx, id) {
       pok: !!game.pok, te: !!game.te, map_string: game.map_string, ti_assistant_url: game.ti_assistant_url,
       notes: game.notes, created_by: who(game.created_by), updated_by: who(game.updated_by),
       created_at: game.created_at, updated_at: game.updated_at, deleted_at: game.deleted_at,
-      seats: seats.map(seatOut),
+      seats: seats.map((s) => (ctx.player.role === "admin" ? { ...seatOut(s), claimable: !!join?.claimable.has(s.player_id) } : seatOut(s))),
+      ...(ctx.player.role === "admin" ? { join_link: join?.link ?? null } : {}),
       can_edit: canEdit(ctx.player, game, seats),
       can_delete: canDelete(ctx.player, game),
     },

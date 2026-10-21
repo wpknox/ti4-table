@@ -2,6 +2,7 @@ import { HttpError, error, checkMutation } from "./http.js";
 import { loadPlayer, me, redeem, logout, deviceCode } from "./auth.js";
 import { listPlayers, createPlayer, renamePlayer } from "./players.js";
 import { listGames, getGame, createGame, updateGame, deleteGame } from "./games.js";
+import { makeJoinLink, stopJoinLinks, joinPreview, joinClaim } from "./join.js";
 import { tiAssistantGame } from "./ti-assistant.js";
 import { makeInvite, listAdminPlayers, patchPlayer, revokeSessions, restoreGame, listRevisions, revertGame } from "./admin.js";
 
@@ -28,6 +29,10 @@ const ROUTES = [
   ["DELETE", "/api/games/:id", deleteGame],
   ["POST", "/api/players", createPlayer],
   ["PATCH", "/api/players/:id", renamePlayer],
+  ["POST", "/api/games/:id/join-links", makeJoinLink],
+  ["DELETE", "/api/games/:id/join-links", stopJoinLinks],
+  ["POST", "/api/join/preview", joinPreview],
+  ["POST", "/api/join/claim", joinClaim],
   ["POST", "/api/admin/invites", makeInvite],
   ["GET", "/api/admin/players", listAdminPlayers],
   ["PATCH", "/api/admin/players/:id", patchPlayer],

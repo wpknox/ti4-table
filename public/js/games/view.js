@@ -14,6 +14,7 @@ import * as S from "./stats.js";
 import { dayShortP, yearOf, dayLongP, expansionsText, safeTiLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
 import { renderAdmin, renderHistory } from "./admin.js";
+import { renderClaim } from "./claim.js";
 
 // ── Dispatch ───────────────────────────────────────────────────────────────
 
@@ -41,6 +42,8 @@ export async function renderGames(url, main, ctx) {
 
   const env = { url, main, ctx, me };
   if (rest === "/join") return renderJoin(env);
+  // A join link is opened signed out by design; the server checks the code.
+  if (rest === "/claim") return renderClaim(env);
   // Games are private to the group: every other page needs a sign-in, and
   // signing in comes back to the page that was asked for.
   if (!me) return renderJoin({ ...env, returnTo: path + url.search });
@@ -166,7 +169,7 @@ function finishedSeatHtml(s) {
     <span class="gscore" aria-label="${known ? `${esc(s.points)} points` : "Points not remembered"}">${known ? esc(s.points) : "?"}</span>
     <span class="gseat-body">
       <span class="gfaction${s.faction ? "" : " unpicked"}">${sym(s.faction)}${s.faction ? esc(factionName(s.faction)) : "Faction not remembered"}</span>
-      <span class="gplayer">${esc(seatDetail(s))}</span>
+      <span class="gplayer">${esc(seatDetail(s))}${guestNote(s)}</span>
     </span></li>`;
 }
 
@@ -177,9 +180,12 @@ function plannedSeatHtml(s, i) {
     <span class="gscore" aria-label="Seat ${n}">${n}</span>
     <span class="gseat-body">
       <span class="gfaction${s.faction ? "" : " unpicked"}">${sym(s.faction)}${esc(factionName(s.faction))}</span>
-      <span class="gplayer">${esc(seatDetail(s, false))}</span>
+      <span class="gplayer">${esc(seatDetail(s, false))}${guestNote(s)}</span>
     </span></li>`;
 }
+
+// Admins only (the API sends `claimable` to nobody else): this seat could be taken with a join link.
+const guestNote = (s) => (s.claimable ? ` <span class="gnote">guest</span>` : "");
 
 function seatsHtml(g) {
   if (g.status === "planned") return g.seats.map(plannedSeatHtml).join("");
@@ -267,11 +273,74 @@ function addGameActions(acts, g, me) {
     });
     acts.append(b);
   }
+  if (admin && !g.deleted_at && g.seats.some((s) => s.claimable)) addJoinLink(acts, g);
   if (g.can_delete && !g.deleted_at) {
     const b = Object.assign(document.createElement("button"), { type: "button", className: "btn btn-quiet", textContent: "Delete game" });
     b.addEventListener("click", () => confirmDelete(acts, b, g));
     acts.append(b);
   }
+}
+
+// ── Join link (admins) ─────────────────────────────────────────────────────
+
+// Makes one link for the whole table. The code is only shown once, because the
+// server keeps just a hash of it.
+function addJoinLink(acts, g) {
+  const box = document.createElement("div");
+  box.className = "gjoin";
+  acts.append(box);
+  const until = (iso) => dayLongP(iso);
+
+  const showMake = () => {
+    const live = g.join_link
+      ? `<p class="muted">A join link is live until ${esc(until(g.join_link.expires_at))}. Its code can't be shown again. Make a new link to get one you can send; the old one keeps working until you stop it.</p>`
+      : "";
+    box.innerHTML = `${live}<div class="row"><button type="button" class="btn" data-make>Make join link</button>
+      ${g.join_link ? `<button type="button" class="btn btn-quiet" data-stop>Stop join links</button>` : ""}</div>
+      <p class="error g-err" role="alert" hidden></p>`;
+  };
+  const fail = (err) => { const e = $(".g-err", box); e.textContent = err.message; e.hidden = false; };
+
+  const showLink = ({ code, expires_at }) => {
+    const url = `${location.origin}/games/claim#${code}`;
+    box.innerHTML = `<label for="join-url">Join link</label>
+      <input id="join-url" class="join-url" type="text" readonly value="${esc(url)}">
+      <div class="row"><button type="button" class="btn btn-primary" data-copy>Copy link</button>
+        ${navigator.share ? `<button type="button" class="btn" data-share>Share</button>` : ""}
+        <button type="button" class="btn btn-quiet" data-stop>Stop join links</button></div>
+      <p class="muted">Anyone with this link can claim a guest seat in this game until ${esc(until(expires_at))}.</p>
+      <p class="error g-err" role="alert" hidden></p>`;
+    $("#join-url", box).addEventListener("focus", (e) => e.target.select());
+  };
+
+  box.addEventListener("click", async (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    $(".g-err", box) && ($(".g-err", box).hidden = true);
+    try {
+      if (b.dataset.make !== undefined) {
+        b.disabled = true;
+        showLink(await post(`/api/games/${g.id}/join-links`, {}));
+      } else if (b.dataset.copy !== undefined) {
+        await navigator.clipboard.writeText($("#join-url", box).value);
+        b.textContent = "Copied";
+      } else if (b.dataset.share !== undefined) {
+        await navigator.share({ url: $("#join-url", box).value });
+      } else if (b.dataset.stop !== undefined) {
+        b.disabled = true;
+        await del(`/api/games/${g.id}/join-links`);
+        g.join_link = null;
+        toast("Join links stopped");
+        showMake();
+      }
+    } catch (err) {
+      if (err.name === "AbortError") return; // closed the share sheet
+      b.disabled = false;
+      if (err instanceof ApiError) fail(err);
+      else toast("Couldn't copy. Select the link and copy it by hand.");
+    }
+  });
+  showMake();
 }
 
 // "Name, colour, winner, started as speaker, seat 3": whichever parts apply.

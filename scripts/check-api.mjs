@@ -494,6 +494,7 @@ async function run() {
   check("A revert to a pre-0003 snapshot restores from_memory false and day precision",
     strip.status === 0 && r.status === 200 && fromOld.from_memory === false && fromOld.date_precision === "day", `${strip.status} ${r.status} ${fromOld?.from_memory} ${fromOld?.date_precision}`);
 
+  await joinChecks({ admin, e1, e2, reader });
   await tiAssistantChecks({ e1, e2, e3, reader });
 
   // Roles
@@ -566,6 +567,155 @@ async function tiAssistantChecks({ e1, reader }) {
   check("The 21st lookup -> 429", r.status === 429, r.status);
   r = await ti(LIVE_ID, reader);
   check("The limit is per player: another editor is not blocked", r.status === 200, r.status);
+}
+
+// ── Join links ───
+async function joinChecks({ admin, e1, e2, reader }) {
+  const sql = (cmd) => wrangler("d1", "execute", "ti4-table", "--local", "--persist-to", STATE, "--json", "--command", cmd);
+  const rows = (cmd) => { try { return JSON.parse(sql(cmd).stdout)[0].results; } catch { return []; } };
+  // Each failing call uses its own fake client address so the lockout never hits the others.
+  let ipN = 0;
+  const anon = (method, path, body) => api(method, path, { body, ip: `198.51.100.${++ipN}` });
+  const mkGuest = async (name) => (await api("POST", "/api/players", { cookie: e1.cookie, body: { name } })).data.id;
+
+  const gA = await mkGuest("Join Guest A");
+  const gB = await mkGuest("Join Guest B");
+  const gOnce = await mkGuest("Join Once Redeemed"); // redeemed an invite, then set back to none
+  const gGone = await mkGuest("Join Archived");
+  const gOther = await mkGuest("Join Elsewhere"); // not in the game
+  const gHouse = await signIn("Join Houseguest", "editor"); // already an editor, seated
+  const mk = await api("POST", "/api/games", {
+    cookie: e1.cookie,
+    body: gameBody([gA, gB, gOnce, gGone, e2.id, gHouse.id], { status: "planned" }),
+  });
+  const GJ = mk.data?.id;
+  check("Join: a planned game with guests is created", mk.status === 201 && Number.isInteger(GJ), JSON.stringify(mk.data));
+  const once = await signIn("Join Once Temp", "editor");
+  // Give gOnce a used invite, as if they had signed in before.
+  sql(`INSERT INTO invites (code_hash, player_id, role, created_by, expires_at, used_at)
+       VALUES ('check-used-${GJ}', ${gOnce}, 'editor', ${admin.id}, '2000-01-01T00:00:00Z', '2000-01-01T00:00:00Z')`);
+  await api("PATCH", `/api/admin/players/${gGone}`, { cookie: admin.cookie, body: { archived: true } });
+  void once; void gOther;
+
+  // 1. Who may make and stop links
+  let r = await api("POST", `/api/games/${GJ}/join-links`, { cookie: e1.cookie, body: {} });
+  check("Join: an editor making a link -> 403", r.status === 403, r.status);
+  r = await api("DELETE", `/api/games/${GJ}/join-links`, { cookie: e1.cookie, body: {} });
+  check("Join: an editor stopping links -> 403", r.status === 403, r.status);
+  r = await api("POST", `/api/games/${GJ}/join-links`, { body: {} });
+  check("Join: signed out making a link -> 401", r.status === 401, r.status);
+  r = await api("DELETE", `/api/games/${GJ}/join-links`, { body: {} });
+  check("Join: signed out stopping links -> 401", r.status === 401, r.status);
+  r = await api("POST", "/api/games/999999/join-links", { cookie: admin.cookie, body: {} });
+  check("Join: a missing game -> 404", r.status === 404, r.status);
+
+  // 2. Make a link and preview it
+  r = await api("POST", `/api/games/${GJ}/join-links`, { cookie: admin.cookie, body: {} });
+  const code = r.data?.code;
+  check("Join: admin makes a link -> 201 with a formatted code",
+    r.status === 201 && /^[0-9A-Z]{5}-[0-9A-Z]{5}$/.test(code ?? "") && !!r.data.expires_at, JSON.stringify(r.data));
+  const stored = rows("SELECT code_hash FROM join_links").map((x) => x.code_hash).join();
+  check("Join: only a hash of the code is stored", !!code && !stored.includes(code.replace("-", "")) && /^[0-9a-f]{64}$/.test(stored.split(",")[0]));
+  r = await anon("POST", "/api/join/preview", { code });
+  const names = (r.data?.seats ?? []).map((s) => s.name).sort().join();
+  check("Join: preview lists only the claimable guests",
+    r.status === 200 && names === "Join Guest A,Join Guest B", names);
+  check("Join: preview returns only date, status and seat name, faction and id",
+    Object.keys(r.data).sort().join() === "game,seats" && Object.keys(r.data.game).sort().join() === "date_precision,played_on,status" &&
+    r.data.seats.every((s) => Object.keys(s).sort().join() === "faction,name,player_id"), JSON.stringify(r.data));
+
+  // 10. Game page flags
+  const asAdmin = (await api("GET", `/api/games/${GJ}`, { cookie: admin.cookie })).data?.game;
+  const asEditor = (await api("GET", `/api/games/${GJ}`, { cookie: e1.cookie })).data?.game;
+  check("Join: admin sees claimable per seat and join_link",
+    asAdmin.seats.filter((s) => s.claimable).length === 2 && !!asAdmin.join_link?.expires_at && !JSON.stringify(asAdmin).includes(code));
+  check("Join: an editor sees neither claimable nor join_link", !("join_link" in asEditor) && asEditor.seats.every((s) => !("claimable" in s)));
+
+  // 3. Claim
+  r = await anon("POST", "/api/join/claim", { code, player_id: gA });
+  const cookie = cookieOf(r);
+  check("Join: claim -> 200 with a cookie and game_id", r.status === 200 && !!cookie && r.data.game_id === GJ && r.data.player.role === "editor", JSON.stringify(r.data));
+  const who = await api("GET", "/api/me", { cookie });
+  check("Join: /api/me with that cookie is the claimed player", who.data?.player?.id === gA && who.data.player.role === "editor");
+  const inv = rows(`SELECT used_at FROM invites WHERE player_id = ${gA}`);
+  check("Join: the claim leaves a used invites row", inv.length === 1 && !!inv[0].used_at, JSON.stringify(inv));
+
+  // 4. Taken seats
+  r = await anon("POST", "/api/join/claim", { code, player_id: gA });
+  check("Join: claiming the same player again -> 409", r.status === 409, `${r.status} ${r.data?.error}`);
+  r = await anon("POST", "/api/join/preview", { code });
+  check("Join: preview no longer lists the claimed player", r.data?.seats?.map((s) => s.name).join() === "Join Guest B", JSON.stringify(r.data));
+
+  // 5/6. Not claimable
+  const notOk = [["a returning player set back to none", gOnce], ["an archived player", gGone], ["a player not in the game", gOther],
+    ["an editor", e2.id], ["an admin", admin.id], ["a seated editor who signed in", gHouse.id]];
+  for (const [label, pid] of notOk) {
+    r = await anon("POST", "/api/join/claim", { code, player_id: pid });
+    check(`Join: claiming ${label} -> 409`, r.status === 409, `${r.status} ${r.data?.error}`);
+  }
+  check("Join: none of those were changed",
+    rows(`SELECT COUNT(*) AS n FROM players WHERE id IN (${gOnce}, ${gGone}, ${gOther}) AND role = 'none'`)[0]?.n === 3);
+
+  // 8. Already signed in
+  r = await api("POST", "/api/join/claim", { cookie: reader.cookie, body: { code, player_id: gB }, ip: "198.51.100.200" });
+  check("Join: claiming while signed in -> 409 and nothing changes",
+    r.status === 409 && /already signed in/.test(r.data?.error) && rows(`SELECT role FROM players WHERE id = ${gB}`)[0]?.role === "none", `${r.status} ${r.data?.error}`);
+
+  // 7. Expired and stopped links
+  r = await api("POST", `/api/games/${GJ}/join-links`, { cookie: admin.cookie, body: {} });
+  const old = r.data.code;
+  sql(`UPDATE join_links SET expires_at = '2000-01-01T00:00:00Z' WHERE rowid = (SELECT MAX(rowid) FROM join_links)`);
+  const badIp = "198.51.100.201";
+  r = await api("POST", "/api/join/preview", { body: { code: old }, ip: badIp });
+  const generic = (await api("POST", "/api/auth/redeem", { body: { code: "ABCDE-FGHJK" }, ip: "198.51.100.202" })).data?.error;
+  check("Join: an expired link -> 400 with the generic message", r.status === 400 && r.data.error === generic, `${r.status} ${r.data?.error}`);
+  r = await api("POST", "/api/join/claim", { body: { code: old, player_id: gB }, ip: badIp });
+  check("Join: claiming with an expired link -> 400", r.status === 400, r.status);
+  r = await api("POST", `/api/games/${GJ}/join-links`, { cookie: admin.cookie, body: {} });
+  const live = r.data.code;
+  r = await api("DELETE", `/api/games/${GJ}/join-links`, { cookie: admin.cookie, body: {} });
+  check("Join: admin stops the links -> 200", r.status === 200 && r.data.ok === true, r.status);
+  r = await api("POST", "/api/join/claim", { body: { code: live, player_id: gB }, ip: badIp });
+  check("Join: claiming with a stopped link -> 400", r.status === 400, r.status);
+  check("Join: stopping removes join_link from the game page",
+    (await api("GET", `/api/games/${GJ}`, { cookie: admin.cookie })).data.game.join_link === null);
+  const codes = [];
+  const lockIp = "198.51.100.203";
+  for (let i = 0; i < 10; i++) codes.push((await api("POST", "/api/join/preview", { body: { code: "ZZZZZ-ZZZZ" + i }, ip: lockIp })).status);
+  r = await api("POST", "/api/join/preview", { body: { code: "ZZZZZ-ZZZZZ" }, ip: lockIp });
+  check("Join: bad codes count toward the lockout (429 after 10)", codes.every((s) => s === 400) && r.status === 429, `${codes} ${r.status}`);
+
+  // 9. Deleted game
+  const mk2 = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, await mkGuest("Join Guest C")], { status: "planned" }) });
+  r = await api("POST", `/api/games/${mk2.data.id}/join-links`, { cookie: admin.cookie, body: {} });
+  const delCode = r.data.code;
+  await api("DELETE", `/api/games/${mk2.data.id}`, { cookie: e1.cookie, body: {} });
+  r = await anon("POST", "/api/join/preview", { code: delCode });
+  const r2 = await anon("POST", "/api/join/claim", { code: delCode, player_id: mk2.data.id });
+  check("Join: a deleted game's link -> 400 on preview and claim", r.status === 400 && r2.status === 400, `${r.status} ${r2.status}`);
+
+  // No guests at all
+  r = await api("POST", `/api/games/${mk2.data.id}/join-links`, { cookie: admin.cookie, body: {} });
+  check("Join: a deleted game can't get a link -> 404", r.status === 404, r.status);
+  const noGuest = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, reader.id], { status: "planned" }) });
+  r = await api("POST", `/api/games/${noGuest.data.id}/join-links`, { cookie: admin.cookie, body: {} });
+  check("Join: a game with no guest -> 400 'Nobody in this game is a guest.'", r.status === 400 && r.data.error === "Nobody in this game is a guest.", `${r.status} ${r.data?.error}`);
+
+  // 11. Odd input
+  r = await api("POST", `/api/games/${GJ}/join-links`, { cookie: admin.cookie, body: {} });
+  const fresh = r.data.code;
+  const odd = ["' OR 1=1 --", { a: 1 }, ["x"], 5, null, "A".repeat(5000)];
+  const statuses = [];
+  for (const c of odd) statuses.push((await anon("POST", "/api/join/preview", { code: c })).status);
+  for (const c of odd) statuses.push((await anon("POST", "/api/join/claim", { code: c, player_id: gB })).status);
+  const oddIds = ["1 OR 1=1", "1; DROP TABLE players", { id: 1 }, [gB], 1.5, null, true, "5"];
+  for (const pid of oddIds) statuses.push((await anon("POST", "/api/join/claim", { code: fresh, player_id: pid })).status);
+  check("Join: odd code and player_id values -> 400, never a server error", statuses.every((s) => s === 400), statuses.join());
+  check("Join: those left the guest unclaimed and the table intact",
+    rows(`SELECT role FROM players WHERE id = ${gB}`)[0]?.role === "none" && rows("SELECT COUNT(*) AS n FROM players")[0]?.n > 5);
+  r = await anon("POST", "/api/join/preview", {});
+  check("Join: preview with no body -> 400", r.status === 400, r.status);
+
 }
 
 try {
