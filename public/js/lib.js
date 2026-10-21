@@ -11,7 +11,7 @@ export const esc = (s) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
-// One-for-one character swaps, so offsets in normalised text line up with
+// One-for-one character swaps, so offsets in normalized text line up with
 // offsets in the original text. Never change the string's length here.
 export const normChars = (s) =>
   s

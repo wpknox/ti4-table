@@ -33,7 +33,7 @@ A single script that drives a real browser through every section and fails loudl
 
 **Console watcher.** One per page. Record every `console` message of type `error`, and every `pageerror`. Any message containing "Content Security Policy" is a failure on its own line. At the end of each step, assert that no errors were recorded during the step. Ignore exactly one known-benign warning, Chrome's "preloaded using link preload but not used", and only because it is a warning. Errors are never ignored.
 
-**Layout pass.** Run this for each of the four combinations of viewport (390×844, 1280×800) and colour scheme (dark, light; `page.emulateMedia({ colorScheme })`), for every URL in the route list below:
+**Layout pass.** Run this for each of the four combinations of viewport (390×844, 1280×800) and color scheme (dark, light; `page.emulateMedia({ colorScheme })`), for every URL in the route list below:
 - No horizontal scroll: `document.documentElement.scrollWidth <= window.innerWidth`.
 - `main` has non-empty text.
 - No console errors.
@@ -61,7 +61,7 @@ A single script that drives a real browser through every section and fails loudl
 6. **Log a game.**
    - Through the API with the page's cookie, so the steps don't depend on form internals, create two guest players: "Guest One", and `<img src=x onerror="window.__xss=1">`.
    - Then use the **real form** at `/games/new` to log a 3-player game: today's date, any three distinct factions, the UI Admin with the top points.
-   - Read `public/js/games/form.js` to find the field ids and the typeahead's behaviour. Don't guess them.
+   - Read `public/js/games/form.js` to find the field ids and the typeahead's behavior. Don't guess them.
    - Save. The URL becomes `/games/<id>`, and the page shows all three player names, with the XSS name as literal text.
    - `window.__xss` is undefined.
 7. **Stats.** On `/games/stats`, every `.bar-fill` has a non-empty `style.width`, which proves the CSP-safe width code ran.

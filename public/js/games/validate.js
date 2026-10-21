@@ -193,7 +193,7 @@ function validateSeat(s, { players, factions, indexes, planned, memory }) {
   players.add(s.player_id);
   const faction = checkFaction(s.faction, factions, planned || memory);
   const color = s.color ?? null;
-  if (color !== null && (typeof color !== "string" || color.length > LIMITS.color)) throw bad("Colour is too long.");
+  if (color !== null && (typeof color !== "string" || color.length > LIMITS.color)) throw bad("Color is too long.");
   const seat_index = s.seat_index ?? null;
   if (seat_index !== null) checkSeatIndex(seat_index, indexes);
   const points = checkPoints(s, planned, memory);

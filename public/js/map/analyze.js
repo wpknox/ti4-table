@@ -49,15 +49,15 @@ function buildGraph(parsed, tiles) {
   };
   const g = { info, at, isLane, link };
 
-  linkNeighbours(systems, g);
+  linkNeighbors(systems, g);
   linkWormholes(systems, g);
   linkHyperlanes(parsed.tiles.filter(isLane), g);
 
   return { info, adj, systems };
 }
 
-// 1. Neighbouring hexes.
-function linkNeighbours(systems, { at, isLane, link }) {
+// 1. Neighboring hexes.
+function linkNeighbors(systems, { at, isLane, link }) {
   for (const t of systems)
     for (const [dq, dr] of DIRS) {
       const n = at(t.q + dq, t.r + dr);

@@ -76,7 +76,7 @@ All existing checks must still pass.
 ## Front end
 
 **Map page (`public/js/map/view.js`)**
-- Once a map is analysed, add a link under the seat reports: **"Plan a game on this map"**, pointing to `/games/new?plan=1&m=<encoded map string>`.
+- Once a map is analyzed, add a link under the seat reports: **"Plan a game on this map"**, pointing to `/games/new?plan=1&m=<encoded map string>`.
 - Show it to everyone. Signed-out users who follow it get the form's usual sign-in prompt.
 
 **Log form (`public/js/games/form.js`)**
@@ -106,13 +106,13 @@ All existing checks must still pass.
 - **Planned games:**
   - heading "Planned for <dayLong>"
   - no scores block
-  - seats in seat order, showing player, faction (or "Faction not picked") and colour
+  - seats in seat order, showing player, faction (or "Faction not picked") and color
   - the "Enter results" button
   - copy: "This game hasn't been played yet. Stats will count it once results are in."
 
 **List (`renderList`)**
 - At the top, an **"Upcoming"** group from `GET /api/games?status=planned`, shown only when there are any. Each row reads "<day> · N players · planned", links to the game, and shows the map seat count when there's a map. Then the existing finished list from `?status=finished` (pagination unchanged).
-- **TI Assistant link on rows:** when `safeHttps(g.ti_assistant_url)`, add a small separate link after the row link (not nested in it, since nested `<a>` is invalid): "TI Assistant", `target="_blank" rel="noopener noreferrer"`. It needs a ≥44px touch target, `--influence` colour and a visible focus style. For this, `attach()` must return `ti_assistant_url` and `map_string`.
+- **TI Assistant link on rows:** when `safeHttps(g.ti_assistant_url)`, add a small separate link after the row link (not nested in it, since nested `<a>` is invalid): "TI Assistant", `target="_blank" rel="noopener noreferrer"`. It needs a ≥44px touch target, `--influence` color and a visible focus style. For this, `attach()` must return `ti_assistant_url` and `map_string`.
 
 **Stats:** no code change, because `full=1` excludes planned. Add a planned game to `db/seed.sql` and confirm `node scripts/check-stats.mjs` still matches the hand count. Update the header comment to say planned games don't count.
 
@@ -128,9 +128,9 @@ All existing checks must still pass.
 
 ## Acceptance (check in Chrome or Playwright at 390×844 and 1280×800, dark and light)
 
-1. Map page → "Plan a game on this map" → the form shows the map with N seat cards. Picking players and some factions updates the names and symbols on the map. Save → the game page shows "Planned for …", the labelled map, and "Enter results".
+1. Map page → "Plan a game on this map" → the form shows the map with N seat cards. Picking players and some factions updates the names and symbols on the map. Save → the game page shows "Planned for …", the labeled map, and "Enter results".
 2. The list shows the planned game under "Upcoming". It isn't in the finished list and doesn't count in stats.
-3. "Enter results" → points and winner → save → it appears in the finished list and stats, with the labelled map on its page.
+3. "Enter results" → points and winner → save → it appears in the finished list and stats, with the labeled map on its page.
 4. A finished game with a TI Assistant link shows the link on its list row. Tapping it opens TI Assistant, and tapping the row still opens the game.
 5. An XSS check: a player named `<img src=x onerror=alert(1)>` renders as text on the form map, the game-page map and the list.
 6. `npm run check:api`, `node scripts/check-stats.mjs`, `node scripts/check-map-svg.mjs`, `node scripts/check-map.mjs` and `node scripts/check-analysis.mjs` all pass.

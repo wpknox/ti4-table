@@ -6,17 +6,17 @@
 // see docs/research/tile-data.md):
 //
 // - Tokens are separated by spaces or commas. Token N sits at map position N.
-//   Position 0 is the centre. After it the string walks ring 1, then ring 2,
-//   and so on. Each ring starts at the tile directly above the centre (north)
+//   Position 0 is the center. After it the string walks ring 1, then ring 2,
+//   and so on. Each ring starts at the tile directly above the center (north)
 //   and goes clockwise. Ring k has 6k tiles and starts at position 3k(k-1)+1:
 //   ring 1 is 1-6, ring 2 is 7-18, ring 3 is 19-36, ring 4 is 37-60.
 // - Mecatol Rex is implied: a plain string starts at position 1 and the
-//   centre is tile 18. Two ways to override that:
+//   center is tile 18. Two ways to override that:
 //     `{42} 1 2 3 …`  braces around the first token put that tile in the
-//                     centre (TTPG and TTS). `{-1}` leaves the centre empty.
+//                     center (TTPG and TTS). `{-1}` leaves the center empty.
 //     `18 1 2 3 …`    a first token of 18 (or 112, Thunder's Edge's Mecatol)
-//                     is taken as the centre. TI Assistant writes its strings
-//                     this way. TTPG would put that 18 north of the centre,
+//                     is taken as the center. TI Assistant writes its strings
+//                     this way. TTPG would put that 18 north of the center,
 //                     but no real map does that.
 // - Token shape: `<number><side><rotation>`, e.g. `19`, `83A`, `83A2`, `88B5`.
 //   Side is A or B (which face is up). Rotation 0-5 counts 60° steps
@@ -32,13 +32,13 @@
 // Coordinates: axial (q, r) for FLAT-TOP hexes, as on redblobgames.com
 // (Milty draft uses the same system). Screen y points down.
 //   x = 1.5 * q,   y = √3 * (r + q / 2)        (in units of hex radius)
-//   Neighbour directions, which are also hyperlane edge numbers:
+//   Neighbor directions, which are also hyperlane edge numbers:
 //   0 N (0,-1)  1 NE (+1,-1)  2 SE (+1,0)  3 S (0,+1)  4 SW (-1,+1)  5 NW (-1,0)
 //   A hyperlane edge e at rotation 0 faces direction (e + rotation) % 6.
 //
 // Homes and seats: the string decides. Home tiles (faction home systems, the
 // Creuss and Crimson Rebellion gates) and P1…P8 markers are seats. Seats are
-// numbered clockwise from north by angle around the centre, unless P-markers
+// numbered clockwise from north by angle around the center, unless P-markers
 // number them. Tools disagree on where homes go for a given player count (see
 // HOME_POSITIONS), so the table is a last resort for strings that mark no
 // homes at all.
@@ -145,7 +145,7 @@ function resolveId(num, side, data) {
  *   detection); playerCount: expected seats (optional).
  * @returns {{ tiles: {pos:number,q:number,r:number,id:string,rotation:number,seat?:number}[],
  *             playerCount: number, homes: number[], warnings: string[] }}
- *   tiles lists every position that isn't -1, centre included. Open slots
+ *   tiles lists every position that isn't -1, center included. Open slots
  *   have id "0". homes lists seat positions in seat order.
  */
 export function parseMapString(input, { data, playerCount } = {}) {
@@ -156,7 +156,7 @@ export function parseMapString(input, { data, playerCount } = {}) {
     .filter(Boolean)
     .map((t) => t.toUpperCase());
 
-  // Centre handling, see the header.
+  // Center handling, see the header.
   let tokens;
   const brace = /^\{(.*)\}$/.exec(raw[0] ?? "");
   if (brace) tokens = [brace[1], ...raw.slice(1)];

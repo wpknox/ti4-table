@@ -1,5 +1,5 @@
 // Draws a parsed map as an SVG string. Pure string building, no DOM, so
-// scripts/check-map-svg.mjs can render it in Node. map.css does the colour,
+// scripts/check-map-svg.mjs can render it in Node. map.css does the color,
 // and view.js toggles the `sel` class when a seat is selected, so picking a
 // seat never redraws the map.
 //
@@ -9,7 +9,7 @@ import { DIRS, hexToPixel, rotateLanes } from "./parse.js";
 import { factionId } from "../factions.js";
 
 const R = 20;
-const GAP = 0.95; // drawn size vs. grid size, so neighbours don't touch
+const GAP = 0.95; // drawn size vs. grid size, so neighbors don't touch
 const f = (n) => Math.round(n * 100) / 100;
 
 const esc = (s) =>
@@ -181,7 +181,7 @@ function innerMarks(t, info, homeSeat, symbols, seatLabels, ids) {
 }
 
 // The tile's number, for building the physical map. aria-hidden: the hex's aria-label already says "Tile N".
-// Art has no other text, so its number is bigger and centred on a pill; analysis gets a small one at the top.
+// Art has no other text, so its number is bigger and centered on a pill; analysis gets a small one at the top.
 function idLabel(id, onArt) {
   const text = esc(id);
   if (!onArt) return `<g class="tile-id-wrap" aria-hidden="true"><text class="tile-id" x="0" y="-12.6">${text}</text></g>`;
@@ -226,7 +226,7 @@ function tileClasses(t, info, homeSeat) {
 // A tile drawn as its picture. Returns the markup pieces, including the closing </g>.
 function artTile(t, homeSeat, shared) {
   const out = [];
-  // Rotation is clockwise in 60-degree steps about the hex centre, which is the group's origin.
+  // Rotation is clockwise in 60-degree steps about the hex center, which is the group's origin.
   const rot = t.rotation ?? 0;
   const w = 2 * R * GAP, h = f((w * 222) / 256);
   const rotate = rot ? ` transform="rotate(${rot * 60})"` : "";

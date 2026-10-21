@@ -1,29 +1,29 @@
 # Tile data and map strings
 
-Research for M2 phase 2a (`docs/plans/m2-map-analyzer.md`). It covers where `public/data/tiles.json` came from, what each source's licence allows, and the map-string conventions `public/js/map/parse.js` implements.
+Research for M2 phase 2a (`docs/plans/m2-map-analyzer.md`). It covers where `public/data/tiles.json` came from, what each source's license allows, and the map-string conventions `public/js/map/parse.js` implements.
 
 ## Summary
 
-- **Tile facts** were converted from the TI4 Tabletop Playground mod's system data (Unlicense). Faction names came from AsyncTI4 (Unlicense). Every planet was then checked against AsyncTI4's separate planet files, and the TI4 wiki settled any disagreement. Sources without a licence (Milty draft, KeeganW, TI Assistant) were only read for comparison. Nothing was copied from them.
+- **Tile facts** were converted from the TI4 Tabletop Playground mod's system data (Unlicense). Faction names came from AsyncTI4 (Unlicense). Every planet was then checked against AsyncTI4's separate planet files, and the TI4 wiki settled any disagreement. Sources without a license (Milty draft, KeeganW, TI Assistant) were only read for comparison. Nothing was copied from them.
 - **Coverage:** base game 1-51, Prophecy of Kings 52-91 (hyperlanes as `83A`…`91B`), and Thunder's Edge 92-118 plus the Fracture tiles 900-906. That is 135 entries. The Thunder's Edge hyperlanes 119-124 are left out (see Gaps).
 - **Map strings:** ring order, the Mecatol rules, 0/-1, side letters and rotation were checked against the code of TTPG, Milty draft and TI Assistant. Rotation direction was then confirmed on 57 real hyperlane maps.
 
 ## Sources checked
 
-| Source | What it has | Licence (checked in the repo) | Used for |
+| Source | What it has | License (checked in the repo) | Used for |
 |---|---|---|---|
 | [TI4-TTPG-TS](https://github.com/darrellanderson/TI4-TTPG-TS) (TI4 mod for Tabletop Playground, current) | `src/lib/system-lib/data/system.data.ts`: every system with planets, traits, tech skips, legendary flags, wormholes, anomalies and hyperlane edges per face. `src/lib/map-string-lib/`: the map-string parser, index-to-hex maths, home positions and about 200 premade maps. | `LICENSE`: The Unlicense, with a first line saying it "applies ONLY to the software and tooling, NOT art assets". The GitHub API reports "Other" because of that extra line. | **Copied (converted):** all tile facts. **Fixtures:** map strings in `scripts/check-map.mjs`. **Conventions:** parser and hex code. |
-| [TI4-Online/TI4-TTPG](https://github.com/TI4-Online/TI4-TTPG) (the older JavaScript version of the same mod) | Same kinds of data | Same Unlicense text | Licence check only. The TS version is newer and includes Thunder's Edge. |
-| [AsyncTI4](https://github.com/AsyncTI4/TI4_map_generator_bot) (Discord bot) | `src/main/resources/systems/*.json`, `planets/*.json`, `data/factions/*.json`, `data/hyperlanes.properties` | `LICENSE`: the same Unlicense text, also excluding art. GitHub API: "NOASSERTION". | **Copied:** faction names for home systems. **Cross-check:** every planet's resources, influence, traits, tech skips and legendary flag; every tile's wormholes, anomalies and blue/red back; hyperlane edges and the rotation direction. The planet files also hold card flavour text, which is FFG's work and was not used. |
-| [Milty draft](https://github.com/shenanigans-be/miltydraft) (milty.shenanigans.be) | `data/tiles.json`; `js/generate-map.js` (map templates, the TTS string builder, hex maths) | **No licence:** no `LICENSE` file, and no licence field in `composer.json` or the README. All rights reserved. | Comparison only. Read `generate-map.js` to confirm ring order, coordinates and home slots. Diffed its `tiles.json` against ours. Nothing copied. |
-| [KeeganW/ti4](https://github.com/KeeganW/ti4) (map generator) | `src/data/tileData.js` | **No licence:** no `LICENSE` file, and `package.json` has no licence field | Comparison only: a third opinion on hyperlane edges. Nothing copied. |
-| [TI Assistant](https://github.com/ti-assistant/ti-assistant) | `src/util/map.ts` (default map strings, Mecatol and home handling) | **No licence** | Read only, to learn how the app the group uses reads map strings. No code or data copied. |
-| [TI4 wiki](https://twilight-imperium.fandom.com) (Fandom: "Tiles List", "Planets", faction pages) | Human-curated tile and planet tables | CC BY-SA (Fandom's standard licence) | Tie-breaker for single facts only. Nothing copied. |
+| [TI4-Online/TI4-TTPG](https://github.com/TI4-Online/TI4-TTPG) (the older JavaScript version of the same mod) | Same kinds of data | Same Unlicense text | License check only. The TS version is newer and includes Thunder's Edge. |
+| [AsyncTI4](https://github.com/AsyncTI4/TI4_map_generator_bot) (Discord bot) | `src/main/resources/systems/*.json`, `planets/*.json`, `data/factions/*.json`, `data/hyperlanes.properties` | `LICENSE`: the same Unlicense text, also excluding art. GitHub API: "NOASSERTION". | **Copied:** faction names for home systems. **Cross-check:** every planet's resources, influence, traits, tech skips and legendary flag; every tile's wormholes, anomalies and blue/red back; hyperlane edges and the rotation direction. The planet files also hold card flavor text, which is FFG's work and was not used. |
+| [Milty draft](https://github.com/shenanigans-be/miltydraft) (milty.shenanigans.be) | `data/tiles.json`; `js/generate-map.js` (map templates, the TTS string builder, hex maths) | **No license:** no `LICENSE` file, and no license field in `composer.json` or the README. All rights reserved. | Comparison only. Read `generate-map.js` to confirm ring order, coordinates and home slots. Diffed its `tiles.json` against ours. Nothing copied. |
+| [KeeganW/ti4](https://github.com/KeeganW/ti4) (map generator) | `src/data/tileData.js` | **No license:** no `LICENSE` file, and `package.json` has no license field | Comparison only: a third opinion on hyperlane edges. Nothing copied. |
+| [TI Assistant](https://github.com/ti-assistant/ti-assistant) | `src/util/map.ts` (default map strings, Mecatol and home handling) | **No license** | Read only, to learn how the app the group uses reads map strings. No code or data copied. |
+| [TI4 wiki](https://twilight-imperium.fandom.com) (Fandom: "Tiles List", "Planets", faction pages) | Human-curated tile and planet tables | CC BY-SA (Fandom's standard license) | Tie-breaker for single facts only. Nothing copied. |
 | tidraft.com / TI4 Lab | Map tool | No public source found | Not used |
 
-### Licence decision
+### License decision
 
-This repo is GPL-3.0. The Unlicense is a public-domain dedication, and the FSF lists it as GPL-compatible, so converting TTPG's system data and AsyncTI4's faction names is allowed. Neither requires attribution, but `tiles.json`'s `source` field and this document credit both. Their "not art assets" carve-out doesn't matter here because no images were taken. The numbers printed on tiles are game facts (the game itself is Fantasy Flight Games'). Sources with no licence were used only to check facts, which needs no permission. Their files were not copied.
+This repo is GPL-3.0. The Unlicense is a public-domain dedication, and the FSF lists it as GPL-compatible, so converting TTPG's system data and AsyncTI4's faction names is allowed. Neither requires attribution, but `tiles.json`'s `source` field and this document credit both. Their "not art assets" carve-out doesn't matter here because no images were taken. The numbers printed on tiles are game facts (the game itself is Fantasy Flight Games'). Sources with no license were used only to check facts, which needs no permission. Their files were not copied.
 
 ### How tiles.json was made
 
@@ -67,17 +67,17 @@ The plan's fields are all present for every tile. These extras exist so 2b doesn
 
 These are implemented and documented in the header of `public/js/map/parse.js`.
 
-**Ring order.** Token N goes at position N. Position 0 is the centre. Ring k holds positions 3k(k-1)+1 … 3k(k+1): ring 1 is 1-6, ring 2 is 7-18, ring 3 is 19-36, and ring 4 is 37-60. Each ring starts at the tile **directly north** of the centre and runs **clockwise**.
+**Ring order.** Token N goes at position N. Position 0 is the center. Ring k holds positions 3k(k-1)+1 … 3k(k+1): ring 1 is 1-6, ring 2 is 7-18, ring 3 is 19-36, and ring 4 is 37-60. Each ring starts at the tile **directly north** of the center and runs **clockwise**.
 - TTPG `map-string-parser.ts`: "the first map string entry is above it and winding clockwise. Once back to the 'north' line bump out to the next ring". Its `map-string-hex.ts` has `_firstIndexInRing` = 1 + 3k(k-1).
 - Milty `generate-map.js`: `axial_ring` starts at `direction(4) * radius` = (0, -radius) and steps through directions `[1,0], [0,1], [-1,1], [-1,0], [0,-1], [1,-1]`. That is the same walk with the same coordinates.
 
-**Coordinates.** Axial (q, r), **flat-top**, as on redblobgames.com. Milty's code says "Axial Coordinates and flat-topped hexes", and its `hex_to_pixel` is x = 1.5q, y = √3(r + q/2) with y pointing down. Neighbour directions are N (0,-1), NE (+1,-1), SE (+1,0), S (0,+1), SW (-1,+1) and NW (-1,0). Their indices are also the hyperlane edge numbers. Position 19 is (0,-3), 22 is (3,-3), and 25 is (3,0). That matches Milty's 6-player home coordinates.
+**Coordinates.** Axial (q, r), **flat-top**, as on redblobgames.com. Milty's code says "Axial Coordinates and flat-topped hexes", and its `hex_to_pixel` is x = 1.5q, y = √3(r + q/2) with y pointing down. Neighbor directions are N (0,-1), NE (+1,-1), SE (+1,0), S (0,+1), SW (-1,+1) and NW (-1,0). Their indices are also the hyperlane edge numbers. Position 19 is (0,-3), 22 is (3,-3), and 25 is (3,0). That matches Milty's 6-player home coordinates.
 
 **Mecatol.**
-- A plain string starts at position 1, and the centre is assumed to be 18 (TTPG's parser and Milty's TTS string).
-- `{X}` braces around the first token put X in the centre (TTPG). Real maps use `{42}`, `{87A4}`, `{-1}` and `{0}` for odd centres.
-- TI Assistant writes the centre as a leading `18 ` or `112 ` with no braces (`getDefaultMapString`, `maybeAddMecatol`). The parser follows it: a first token of 18 or 112 is the centre. TTPG would put that tile north of the centre instead, but none of its ~200 premade maps does.
-- TTPG-TS now defaults the centre to 112 (Thunder's Edge Mecatol). The parser defaults to 18. The two differ only in the legendary ability, so 2b can treat them the same.
+- A plain string starts at position 1, and the center is assumed to be 18 (TTPG's parser and Milty's TTS string).
+- `{X}` braces around the first token put X in the center (TTPG). Real maps use `{42}`, `{87A4}`, `{-1}` and `{0}` for odd centers.
+- TI Assistant writes the center as a leading `18 ` or `112 ` with no braces (`getDefaultMapString`, `maybeAddMecatol`). The parser follows it: a first token of 18 or 112 is the center. TTPG would put that tile north of the center instead, but none of its ~200 premade maps does.
+- TTPG-TS now defaults the center to 112 (Thunder's Edge Mecatol). The parser defaults to 18. The two differ only in the legendary ability, so 2b can treat them the same.
 
 **Tokens.**
 - `<number><side><rotation>`, regex `^(-?\d+)([AB]?)([0-5]?)$`, the same as TTPG's `_entryRegExp`.
@@ -99,7 +99,7 @@ These are implemented and documented in the header of `public/js/map/parse.js`.
   - TI Assistant: `0` is a generic empty slot. All the 0s count as homes when their number equals the player count (`makeHomeSystemsExplicit`).
 - The parser counts 0s as homes when nothing else marks homes, or when they fill exactly the missing seats.
 
-**Seat markers.** TI Assistant writes `P1`…`P8` for explicit seats (`isHomeSystem`). The parser numbers seats by these when they're present. Otherwise it numbers them clockwise from north, by angle around the centre. For every layout below, that gives the same order as Milty's player numbering and TI Assistant's P numbering.
+**Seat markers.** TI Assistant writes `P1`…`P8` for explicit seats (`isHomeSystem`). The parser numbers seats by these when they're present. Otherwise it numbers them clockwise from north, by angle around the center. For every layout below, that gives the same order as Milty's player numbering and TI Assistant's P numbering.
 
 **Home positions per player count.** These are map positions, in each tool's seat order. They differ between tools, so the parser trusts the string, and the table is only a fallback.
 

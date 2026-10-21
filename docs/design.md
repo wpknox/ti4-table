@@ -16,14 +16,14 @@ None of this is browsing for pleasure. Each visit is a quick look-up at a table 
 The visual vocabulary comes from the game, not from "space website":
 - **Hex tiles:** the board is hexes.
 - **Resource yellow and influence blue:** every planet card prints these two numbers.
-- **The four tech colours:** biotic green, propulsion blue, cybernetic yellow, warfare red.
+- **The four tech colors:** biotic green, propulsion blue, cybernetic yellow, warfare red.
 - **Numbers everywhere:** rule numbers, planet values, victory points, seat numbers.
 
-Anyone who has played will recognise these. None of it is decoration we invented.
+Anyone who has played will recognize these. None of it is decoration we invented.
 
 ## Tokens
 
-### Colour
+### Color
 
 Dark is the default because the game is played in the evening and the board is black. Light is a full theme, not an afterthought. Every token has both values.
 
@@ -36,13 +36,13 @@ Dark is the default because the game is played in the evening and the board is b
 | `--dust` | `#a0a9cf` | `#505b7d` | secondary text |
 | `--influence` | `#74bcff` | `#1d5fc4` | links, focus, anything you can press; influence values |
 | `--resource` | `#f4c542` | `#9a6700` | numbers that are the signature (rule numbers, seat numbers, scores); resource values; rulings |
-| `--tech-*` | four colours | same | tech skips on the map and in seat reports. Nowhere else. |
-| `--warn` (new) | `#ff9a52` | `#b4530f` | a map finding that needs attention. The only "alarm" colour; `--danger` stays for errors. |
+| `--tech-*` | four colors | same | tech skips on the map and in seat reports. Nowhere else. |
+| `--warn` (new) | `#ff9a52` | `#b4530f` | a map finding that needs attention. The only "alarm" color; `--danger` stays for errors. |
 
-**Rules for colour:**
-- Yellow and blue mean resource and influence wherever a planet value appears. Don't use them for anything else on map or game screens, except that blue is also the interactive colour (the game itself uses blue for "you can do this").
-- No seat palette. TI4's eight plastic colours collide with resource, influence and tech colours, and eight tints on a small phone map turn into noise. **Seats are identified by number.** A big Saira numeral sits on the home hex. The selected seat's slice gets `--hull-2` fill and a `--star` outline. Shared systems get a diagonal hatch. See "Map" below.
-- Player colours in the game log are stored as data (`seats.color`) and shown as a word ("green"), not as a swatch. That's the same reason, and it avoids a pink-on-navy contrast problem.
+**Rules for color:**
+- Yellow and blue mean resource and influence wherever a planet value appears. Don't use them for anything else on map or game screens, except that blue is also the interactive color (the game itself uses blue for "you can do this").
+- No seat palette. TI4's eight plastic colors collide with resource, influence and tech colors, and eight tints on a small phone map turn into noise. **Seats are identified by number.** A big Saira numeral sits on the home hex. The selected seat's slice gets `--hull-2` fill and a `--star` outline. Shared systems get a diagonal hatch. See "Map" below.
+- Player colors in the game log are stored as data (`seats.color`) and shown as a word ("green"), not as a swatch. That's the same reason, and it avoids a pink-on-navy contrast problem.
 
 ### Type
 
@@ -93,7 +93,7 @@ Spend boldness on numbers and keep everything else quiet. This already works in 
 
 ## Layout
 
-One column, `--measure` (42rem) wide, left-aligned, centred on wide screens. Desktop gets more width only where content benefits: the map beside its report, and stats tables. Desktop isn't a dashboard grid.
+One column, `--measure` (42rem) wide, left-aligned, centered on wide screens. Desktop gets more width only where content benefits: the map beside its report, and stats tables. Desktop isn't a dashboard grid.
 
 ### Navigation
 
@@ -109,7 +109,7 @@ The masthead holds the brand and the section links ("Rules  Map  Games") as plai
 │ ┌───────────────────────────────┐ │
 │ │ Paste a map string            │ │  textarea, 3 rows, ≥16px
 │ └───────────────────────────────┘ │
-│ [Analyse map]  Try an example map │  button + text link
+│ [Analyze map]  Try an example map │  button + text link
 │                                   │
 │ Lopsided: seats 1 and 4           │  verdict = page title, Saira 118%
 │ stand out.                        │
@@ -135,9 +135,9 @@ Desktop (≥ 960px): the map is sticky on the left (about 55%) and the report sc
 - Flat-top, as the parser uses.
 - Tile fill is `--hull`; red-backed tiles (anomalies, empty red) get a faint warm tint so the board still reads blue/red at a glance.
 - Planet values are tiny Saira numerals: resource in `--resource`, influence in `--influence`, as on the cards.
-- A tech skip is a 4px dot in its tech colour.
+- A tech skip is a 4px dot in its tech color.
 - Wormholes are the Greek letter (α β γ δ ε) in Saira, which is how players say them.
-- Anomalies are line glyphs, not colours: supernova as a burst, asteroid field as scattered dots, nebula as wavy lines, gravity rift as concentric rings. That keeps colour for meaning.
+- Anomalies are line glyphs, not colors: supernova as a burst, asteroid field as scattered dots, nebula as wavy lines, gravity rift as concentric rings. That keeps color for meaning.
 - Hyperlanes are thin `--dust` strokes edge to edge.
 - Mecatol gets a plain outline. It's important, but it doesn't need decoration.
 
@@ -146,7 +146,7 @@ Desktop (≥ 960px): the map is sticky on the left (about 55%) and the report sc
 - note: an outlined hex in `--dust`
 - good: an outlined hex in `--resource`
 
-Each line is text first. The marker is supplementary, so the sentence alone must say whether it's a problem. That covers colour-blind users and readers who skim.
+Each line is text first. The marker is supplementary, so the sentence alone must say whether it's a problem. That covers color-blind users and readers who skim.
 
 ### Games (M3)
 
@@ -188,7 +188,7 @@ _Added 2026-10-15, after the owner approved the official faction symbols (`docs/
 
 ## Copy
 
-- Sentence case, plain verbs, and buttons that name the result: "Analyse map", "Save game", "Make invite code", "Sign out on this device".
+- Sentence case, plain verbs, and buttons that name the result: "Analyze map", "Save game", "Make invite code", "Sign out on this device".
 - Empty states say what to do: "No games yet. Log the first one after your next game night." Never "Nothing here!".
 - Errors say what happened and how to fix it: "That code has already been used. Ask for a new one."
 - **No middle-dot meta strings.** Use prose with commas, or let type do the separating (a yellow Saira number next to a dust label needs no punctuation between them). The `<title>` tag is exempt; separators there are browser-tab convention.
@@ -211,7 +211,7 @@ These came from the 2026-10-15 review. Each one is small. Do them in one pass be
 
 ## Checked against the brief (what I changed after a first draft)
 
-- **First draft gave each seat a colour.** That's the default for "players on a map". It was dropped: it collides with the game's own colour meanings and doesn't survive 390px. Numbered seats extend the number signature instead.
+- **First draft gave each seat a color.** That's the default for "players on a map". It was dropped: it collides with the game's own color meanings and doesn't survive 390px. Numbered seats extend the number signature instead.
 - **First draft had a 0–10 fairness score** as the map hero (the "big number, small label" default). It was dropped: the analysis can't honestly support that precision, and the brief is "plain English". The verdict sentence is the hero, with the map.
 - **First draft used a bottom tab bar** because it's "an app". It was dropped for the reasons under Navigation.
-- **Kept on purpose despite being common:** a dark navy background. The game board is literally that colour, the group plays at night, and the light theme is complete.
+- **Kept on purpose despite being common:** a dark navy background. The game board is literally that color, the group plays at night, and the light theme is complete.

@@ -132,7 +132,7 @@ Rules come from a local clone of [tirules-search](https://github.com/wpknox/tiru
 node scripts/build-rules.mjs path/to/tirules-search   # or set TIRULES_DIR
 ```
 
-## Credits and licence
+## Credits and license
 
 Full credits are in [`CREDITS.md`](CREDITS.md). In short:
 

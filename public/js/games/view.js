@@ -383,7 +383,7 @@ function addJoinLink(acts, g) {
   showMake();
 }
 
-// "Name, colour, winner, started as speaker, seat 3": whichever parts apply.
+// "Name, color, winner, started as speaker, seat 3": whichever parts apply.
 function seatDetail(s, withSeat = true) {
   const parts = [s.player_name];
   if (s.color) parts.push(s.color);

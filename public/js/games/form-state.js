@@ -87,7 +87,7 @@ export function fromGame(g) {
 }
 
 // A draft came from storage, so don't trust its shape.
-export function sanitiseDraft(d, fallback) {
+export function sanitizeDraft(d, fallback) {
   const int = (v, lo, hi, def) => (Number.isInteger(v) && v >= lo && v <= hi ? v : def);
   const str = (v, def = "") => (typeof v === "string" ? v : def);
   const memory = d.from_memory === true;

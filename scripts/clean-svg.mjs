@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sanitise SVG icons with a strict allowlist, in place. No dependencies.
+// Sanitize SVG icons with a strict allowlist, in place. No dependencies.
 //
 //   node scripts/clean-svg.mjs public/img/factions/*.svg
 //   node scripts/clean-svg.mjs --check file.svg   (exit 1 if the file would change)
@@ -113,7 +113,7 @@ function openTag(src, lt) {
 }
 const localName = (n) => n.replace(/^.*:/, '');
 
-// ── Sanitise ──────────────────────────────────────────────────────────────
+// ── Sanitize ──────────────────────────────────────────────────────────────
 const internalRef = (v) => /^#[A-Za-z_][\w.-]*$/.test(v);
 const urlRef = (v) => { const m = /^url\(\s*#([A-Za-z_][\w.-]*)\s*\)$/.exec(v.trim()); return m ? `url(#${m[1]})` : null; };
 

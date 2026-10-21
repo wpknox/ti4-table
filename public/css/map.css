@@ -1,5 +1,5 @@
 /* Map section. The map is the one bold element; the report stays quiet.
- * Seats are numbered, never coloured (docs/design.md). */
+ * Seats are numbered, never colored (docs/design.md). */
 
 :root {
   --tint-red: rgba(239, 90, 95, 0.1);

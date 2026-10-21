@@ -117,7 +117,7 @@ Use `plural` for "move"/"moves". Both return `rule: "R_expedition"`. Use sentenc
 .te-note { margin: 4px 0 0; color: var(--dust); font-size: var(--t-s); }
 ```
 
-`--resource` already has a light-theme value. Follow the CLAUDE.md design floor: no new colours, sentence case, no all-caps.
+`--resource` already has a light-theme value. Follow the CLAUDE.md design floor: no new colors, sentence case, no all-caps.
 
 ## Acceptance checks
 

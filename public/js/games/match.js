@@ -8,9 +8,9 @@ export { factionId };
 export const normName = (s) =>
   String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-// The roster player whose name equals `name` once normalised, or null. No fuzzy
+// The roster player whose name equals `name` once normalized, or null. No fuzzy
 // matching: a wrong match would credit a win to the wrong friend. If two roster
-// players normalise the same, nobody is picked.
+// players normalize the same, nobody is picked.
 export function matchPlayer(name, roster) {
   const want = normName(name);
   if (!want) return null;

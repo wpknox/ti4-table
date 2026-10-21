@@ -40,7 +40,7 @@ Works for any game id, finished or not (I only fetched finished ones). Unknown i
 ### b) Public list: `GET https://ti-assistant.com/api/archived-games[?timestamp={ms}]`
 Source: `app/api/archived-games/route.ts`. Returns an object keyed by gameId, 50 games per page, newest first (`orderBy timestampMillis desc`), paged with `startAfter(timestamp)`. Each value (type `ProcessedGame`):
 `victoryPoints, playerCount, expansions[], winner (faction name), factions{ "<faction name>": {points, startingTechs, endingTechs} }, gameTime (seconds, 0 if untimed), objectives, rounds, timestampMillis, isMapGame/isObjectiveGame/isPlanetGame/isTechGame/isTimedGame, events`.
-It has no player names, colours, seats, map string or speaker. It only lists games that were processed into the archive; the `/download` endpoint is the full source.
+It has no player names, colors, seats, map string or speaker. It only lists games that were processed into the archive; the `/download` endpoint is the full source.
 
 Gotcha (verified): for one real game the archive says `victoryPoints: 14` while `/download` options say `victory-points: 10`. Treat the VP target as unreliable when the winner's points exceed it, and let the user edit it.
 
@@ -55,7 +55,7 @@ Gotcha (verified): for one real game the archive says `victoryPoints: 14` while 
 | Map string | `options["map-string"]` | Verified. Space-separated tile numbers, Mecatol omitted (18 numbers for ring 1 and 2, up to 36 for ring 3), plus `-1`, `0` and `85A3` style entries for hyperlanes. Can be `""` (map not entered). `options["map-style"]` was `standard` in every sample. Likely compatible with the planned map analyzer (guess; check against its parser). |
 | Player name | `data.factions[i].playerName` | Free text typed by the group; may be a nickname. |
 | Faction | `data.factions[i].id` | See id spelling below. |
-| Colour | `data.factions[i].color` | Capitalised English: Red, Orange, Blue, Green, Yellow, Purple, Black, Magenta seen. |
+| Color | `data.factions[i].color` | Capitalized English: Red, Orange, Blue, Green, Yellow, Purple, Black, Magenta seen. |
 | Seat | index `i` in `data.factions` (code: `factions[faction.mapPosition]`) | Verified in source. Assume the app's seat 1 is index 0. |
 | Starting speaker | `data.speaker` (index into `factions`) | Derived by the server from the earliest `ASSIGN_STRATEGY_CARD` `pickedBy`. It is `0` when the log has no card picks (e.g. objective-only games), so it may be wrong; let the user confirm. |
 | Final points | Archive: `factions[name].points`. Otherwise computed from the log. | Not in `/download`. The site computes it client-side (`computeVPs`): `SCORE_OBJECTIVE` (+ `UNSCORE_OBJECTIVE`), `MANUAL_VP_UPDATE`, Custodians/Imperial, relics, etc. A faithful recomputation means re-implementing their rules, which is risky. |
@@ -71,7 +71,7 @@ Final points and winner (derive or use archive), exact VP target, speaker in spa
 
 The owner downloaded the data file of one of the group's own archived games: 6 players, April 2026, about 320 KB, 942 log entries. The id and names are deliberately not recorded here. It has the same top-level shape (`data`, `timers`, `actionLog`), but it differs from what section 4 assumes:
 
-- **`data.factions` is an empty list, and `data.speaker` is 0.** Faction, colour, seat and player name are only available from the `ADVANCE_PHASE` log entries. Each one carries `event.factions`, an object keyed by faction name: `{ id, color, mapPosition, playerName, order, techs, ... }`. It also carries `event.state`: `{ round, phase, speaker, ... }`. All 18 snapshots agreed on `mapPosition`, `color` and `playerName`. The earliest snapshot (the log is newest first, so it's the last entry) is round 1 `SETUP`. Its `state.speaker` is the starting speaker, as a faction name. Round 1's first `ASSIGN_STRATEGY_CARD` `pickedBy` agreed with it.
+- **`data.factions` is an empty list, and `data.speaker` is 0.** Faction, color, seat and player name are only available from the `ADVANCE_PHASE` log entries. Each one carries `event.factions`, an object keyed by faction name: `{ id, color, mapPosition, playerName, order, techs, ... }`. It also carries `event.state`: `{ round, phase, speaker, ... }`. All 18 snapshots agreed on `mapPosition`, `color` and `playerName`. The earliest snapshot (the log is newest first, so it's the last entry) is round 1 `SETUP`. Its `state.speaker` is the starting speaker, as a faction name. Round 1's first `ASSIGN_STRATEGY_CARD` `pickedBy` agreed with it.
 - **`options["map-string"]` is `""`.** No map was entered. There is one `SWAP_MAP_TILES` entry, which we ignore.
 - **`options.expansions`** is `POK, CODEX ONE…FOUR, THUNDERS EDGE`. `victory-points` is 10.
 - **The date** comes from the earliest `timestampMillis`, which is the game's start day. The game ran past midnight, so `END_GAME` is the next calendar day. Use the start.
@@ -95,7 +95,7 @@ So a parser must read `data.factions` when it's non-empty, otherwise the `ADVANC
 
 ## 6. ToS and etiquette
 
-- I found no ToS, API documentation, privacy page or licence on the site or in the repo. The README only covers running locally. The FAQ and supporters pages mention nothing about data use.
+- I found no ToS, API documentation, privacy page or license on the site or in the repo. The README only covers running locally. The FAQ and supporters pages mention nothing about data use.
 - The endpoints are the site's own internal API (used by its archive and stats pages). It is undocumented and could change without notice. The author offers no API guarantee. Maintainer handle visible in CODEOWNERS: @SephHawkins (public).
 - Recommendations:
   - Fetch only on explicit user paste of one link, once, server-side, with a descriptive User-Agent (e.g. `ti4-table/1.0 (+repo URL)`), cache for a few minutes, and cap response size (logs reach hundreds of KB).

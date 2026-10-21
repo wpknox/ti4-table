@@ -340,7 +340,7 @@ async function run() {
   r = await api("POST", "/api/games", { cookie: e1.cookie, body: gameBody([e1.id, e2.id, g1p3.data.id], { notes: "pristine", points_to_win: 10 }) });
   const G9 = r.data.id;
   const pristine = (await api("GET", `/api/games/${G9}`, { cookie: reader.cookie })).data.game;
-  const vandal = gameBody([e1.id, e2.id, g1p3.data.id], { notes: "vandalised", points_to_win: 20, pok: false, te: true });
+  const vandal = gameBody([e1.id, e2.id, g1p3.data.id], { notes: "vandalized", points_to_win: 20, pok: false, te: true });
   vandal.seats.forEach((s, i) => { s.points = 30 - i; s.faction = FACTION_LIST[5 - i]; });
   r = await api("PUT", `/api/games/${G9}`, { cookie: e2.cookie, body: vandal });
   check("Ed Two overwrites G9", r.status === 200, r.status);
@@ -358,7 +358,7 @@ async function run() {
   const same = (g) => JSON.stringify({ ...g, updated_by: 0, updated_at: 0, can_edit: 0, can_delete: 0 });
   check("Admin reverts G9 and it matches the pre-vandalism game exactly", r.status === 200 && same(restored) === same(pristine));
   const afterRev = await api("GET", `/api/admin/games/${G9}/revisions`, { cookie: admin.cookie });
-  check("The revert saved the vandalised state as a new revision", afterRev.data.revisions[0]?.data?.game?.notes === "vandalised");
+  check("The revert saved the vandalized state as a new revision", afterRev.data.revisions[0]?.data?.game?.notes === "vandalized");
 
   // Create limit: 30 per player per hour
   const spam = await signIn("Spammer", "editor");

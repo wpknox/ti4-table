@@ -1,7 +1,7 @@
 // The Map section: paste a map string, see the map and a plain-English
 // report on each seat. All the maths is in analyze.js; this file only shows it.
 //
-// URL is the state: /map?m=<string>&seat=<n>. Analysing pushes a history
+// URL is the state: /map?m=<string>&seat=<n>. Analyzing pushes a history
 // entry; selecting a seat only rewrites the URL, so Back skips taps.
 
 import { $, $$, esc, plural, remember, store } from "../lib.js";
@@ -48,7 +48,7 @@ export async function renderMap(url, main, ctx) {
       <textarea id="map-input" rows="3" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="18 60 65 20 78 …"></textarea>
       <p class="map-hint" id="map-hint" role="status"></p>
       <div class="map-actions">
-        <button class="btn btn-primary" type="submit">Analyse map</button>
+        <button class="btn btn-primary" type="submit">Analyze map</button>
         <a class="map-example" href="${esc(mapHref(EXAMPLE, 0, dflt, idsDflt))}">Try an example map</a>
       </div>
     </form>
@@ -228,7 +228,7 @@ function showRecent(out) {
     ? `<section class="recent"><h2>Recent maps</h2><ul>${recent
         .map((r) => `<li><a href="${esc(mapHref(r.m))}">${esc(r.label)}</a><span class="muted">${esc(r.m.slice(0, 40))}${r.m.length > 40 ? "…" : ""}</span></li>`)
         .join("")}</ul></section>`
-    : `<p class="map-empty">Paste a map string to see how fair each seat is. A string looks like “18 60 65 20 …”: tile numbers in order from the centre outwards.</p>`;
+    : `<p class="map-empty">Paste a map string to see how fair each seat is. A string looks like “18 60 65 20 …”: tile numbers in order from the center outwards.</p>`;
 }
 
 // ── Seat report ────────────────────────────────────────────────────────────

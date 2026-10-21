@@ -59,7 +59,7 @@ The design rule that follows: **the credential must be typed or presented inside
 
 - Works on `pages.dev`, with the RP ID set to the full hostname. Needs no third party.
 - **Code:** server-side verification with no library. Use `response.getPublicKey()` (SPKI, importable with `crypto.subtle.importKey("spki", …)`) at registration so we don't need a CBOR parser ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/AuthenticatorAttestationResponse/getPublicKey)). At login, convert the DER ECDSA signature to raw r‖s and verify over `authenticatorData ‖ SHA-256(clientDataJSON)`. Also check challenge, origin, rpIdHash and flags.
-- It still needs a way to enrol the first passkey (an invite code), so it's E plus more.
+- It still needs a way to enroll the first passkey (an invite code), so it's E plus more.
 - Passkeys sync through iCloud Keychain, so they should work in both Safari and the installed app. No primary source confirms WebAuthn inside iOS standalone mode, so **test on a phone before relying on it.**
 - **A good later upgrade for self-service recovery, not needed for M3.**
 
@@ -101,7 +101,7 @@ This is an owner decision (see the end of this doc).
 
 **Tokens.**
 - Session token: 32 bytes from `crypto.getRandomValues`, base64url.
-- Invite/device code: 10 characters of Crockford base32 (no I, L, O, U), shown as `XXXXX-XXXXX`. That's 50 bits. Input is normalised: uppercase, strip spaces and dashes, map `O→0` and `I/L→1`.
+- Invite/device code: 10 characters of Crockford base32 (no I, L, O, U), shown as `XXXXX-XXXXX`. That's 50 bits. Input is normalized: uppercase, strip spaces and dashes, map `O→0` and `I/L→1`.
 - D1 stores only `SHA-256(token)` as hex, looked up by equality, so a DB leak doesn't leak live sessions. There's no pepper and no secret to manage.
 
 **Cookie.** `__Host-sid=<token>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=15552000` (180 days). On `http://localhost`, use name `sid` without `Secure` (choose by `url.protocol`), because Safari won't store `Secure` cookies over http. It's sliding: when `last_seen_at` is more than 24h old, extend `expires_at` and re-send the cookie. `pages.dev` is a public suffix, so other `*.pages.dev` sites are cross-site. They can't set or read our cookies, and `SameSite=Lax` keeps the cookie off their cross-site POSTs.
@@ -377,7 +377,7 @@ There are no secrets to set and no identity provider to configure. If B is added
 
 - **Shared codes.** Anyone holding an unused code can claim that player's seat. Mitigations: single use, a 7-day expiry, sending codes 1:1 rather than in a group chat, and the admin's session list and revoke.
 - **Lost access.** Deleting the home-screen app or clearing Safari data wipes the session. Recovery needs another signed-in device or the owner. Passkeys (D) are the self-service fix if this becomes annoying.
-- **iOS behaviour isn't from a primary source.** Apple doesn't document how standalone mode handles out-of-scope navigation. The evidence above is WebKit's storage-isolation statement plus community reports. E doesn't depend on it, but if B or D is added later, test on a real phone first.
+- **iOS behavior isn't from a primary source.** Apple doesn't document how standalone mode handles out-of-scope navigation. The evidence above is WebKit's storage-isolation statement plus community reports. E doesn't depend on it, but if B or D is added later, test on a real phone first.
 - **Pages' future.** Cloudflare steers new projects to Workers. Pages isn't deprecated, but new features land on Workers. Keeping logic in `server/` keeps a move cheap.
 - **Preview deployments.** Top-level D1 bindings in `wrangler.jsonc` also apply to preview deployments, so a branch deploy would write to the production DB. Deploy only `main`, or add an `env.preview` block with a separate database before using previews.
 - **Free-tier ceilings.**

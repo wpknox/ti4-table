@@ -41,7 +41,7 @@ export async function loadSymbols(ids) {
 export const tileSymbols = (parsed, tiles) =>
   loadSymbols(parsed.tiles.map((t) => factionId(tiles[t.id]?.faction)));
 
-// Parses and analyses a map string for drawing. Resolves null when the string
+// Parses and analyzes a map string for drawing. Resolves null when the string
 // isn't a map (the same "fewer than 3 known tiles" test as the Map page);
 // rejects only if the tile data can't be fetched.
 export async function loadMapModel(m) {
@@ -52,7 +52,7 @@ export async function loadMapModel(m) {
   return { tiles, parsed, report, symbols: await tileSymbols(parsed, tiles) };
 }
 
-// Draws the model with a player name and faction on each labelled seat.
+// Draws the model with a player name and faction on each labeled seat.
 // `labels` is { [seatNumber]: { name?, faction? } }. Any faction symbol the
 // labels need is loaded first, so the drawing itself stays synchronous.
 export async function drawMapWithLabels(model, labels, title) {

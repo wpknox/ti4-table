@@ -27,7 +27,7 @@ export function newCode() {
 export const formatCode = (code) => `${code.slice(0, 5)}-${code.slice(5)}`;
 
 // Returns the canonical 10-char code, or null if the input can't be one.
-export function normaliseCode(input) {
+export function normalizeCode(input) {
   const s = String(input ?? "").toUpperCase().replace(/[\s-]+/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
   return /^[0-9A-HJKMNP-TV-Z]{10}$/.test(s) ? s : null;
 }
@@ -116,7 +116,7 @@ export async function redeem(ctx) {
   const body = await readJson(ctx.request);
   const db = ctx.env.DB;
   const ipHash = await lockoutGate(ctx);
-  const code = normaliseCode(body.code);
+  const code = normalizeCode(body.code);
   if (!code) return failRedeem(ctx, ipHash);
   const now = nowIso();
   // Claim atomically so two requests can't both use one code.

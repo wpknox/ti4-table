@@ -19,7 +19,7 @@ import { loadMapModel, drawMapWithLabels } from "../map/load.js";
 import { tabs, todayLocal, safeTiLink, safeMiltyLink, mapHref, sym, errorBlock } from "./ui.js";
 import { checkGameBody, PAIR_TI, PAIR_MILTY } from "./validate.js";
 import {
-  MAX_SEATS, newSeat, blank, pickWinner, modeOf, usableDraft, fitSeats, fromGame, sanitiseDraft, toBody,
+  MAX_SEATS, newSeat, blank, pickWinner, modeOf, usableDraft, fitSeats, fromGame, sanitizeDraft, toBody,
   fillFromTi, applyTiScores, sortByPosition,
 } from "./form-state.js";
 import { trimTiGame, tiGameId } from "./ti-assistant.js";
@@ -34,7 +34,7 @@ function startState(env, game, mode, draftKey) {
   if (!game && mode.plan) st.map_string = (env.url.searchParams.get("m") ?? "").trim().slice(0, 2000);
   if (mode.finish && st.played_on > todayLocal()) st.played_on = todayLocal(); // a finished game can't be dated ahead
   const draft = store.get(draftKey, null);
-  return usableDraft(draft, mode, st) ? { st: sanitiseDraft(draft, st), restored: true } : { st, restored: false };
+  return usableDraft(draft, mode, st) ? { st: sanitizeDraft(draft, st), restored: true } : { st, restored: false };
 }
 
 export async function renderForm(env, editId) {

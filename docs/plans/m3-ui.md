@@ -11,7 +11,7 @@ The group can sign in with an invite code, log a game on a phone at the end of t
 | URL | Who | What |
 |---|---|---|
 | `/games` | everyone | Game list (newest first, `GET /api/games?limit=30`, "Show older games" uses `next`), plus a "Log a game" button for editors and a "Sign in" link for everyone else |
-| `/games/12` | everyone | One game: big final scores (winner's score outlined in `--resource`), seats in seat order with faction symbol, player, colour word, points; date, expansions, notes, TI Assistant link, map link (`/map?m=…` when `map_string` is set), "Logged by X". "Edit" if `can_edit`; "Delete game" if `can_delete` (confirm first, then toast "Game deleted" with no undo; admins restore from the admin page) |
+| `/games/12` | everyone | One game: big final scores (winner's score outlined in `--resource`), seats in seat order with faction symbol, player, color word, points; date, expansions, notes, TI Assistant link, map link (`/map?m=…` when `map_string` is set), "Logged by X". "Edit" if `can_edit`; "Delete game" if `can_delete` (confirm first, then toast "Game deleted" with no undo; admins restore from the admin page) |
 | `/games/new`, `/games/12/edit` | editor | The log form (below) |
 | `/games/join` | everyone | Invite-code sign-in. Pre-fills from `#code=…`. After success: toast "Signed in as Name", go to `/games` |
 | `/games/stats` | everyone | Stats (below) |
@@ -40,7 +40,7 @@ Also: link `games.css` in `index.html`, register the section in `app.js`, add fi
 - **Each seat:**
   - **player:** a typeahead over `GET /api/players` (not archived), plus an "Add a guest…" option that `POST /api/players` creates
   - **faction:** a typeahead over the 31 faction ids, with symbol and name; names come from `rules.json` page titles, split "The Firmament / The Obsidian"
-  - **colour:** optional select of the 8 TI4 colours as words
+  - **color:** optional select of the 8 TI4 colors as words
   - **points:** a stepper (−, big numeral, +, 44px buttons)
   - **seat position:** optional
 - **Winner:** automatic from the top score, and re-picked when points change, unless the user overrode it with "Make winner". On a tie with no override, show "Two seats are tied on 10. Pick the winner." and block saving until they pick.
@@ -74,7 +74,7 @@ Also: link `games.css` in `index.html`, register the section in `app.js`, add fi
 
 ## Security (the owner cares; this gets reviewed)
 
-- **Escape user text.** Every user string (names, notes, colours, URLs, map strings) goes through `esc()` or `textContent`. Never interpolate API data into HTML unescaped.
+- **Escape user text.** Every user string (names, notes, colors, URLs, map strings) goes through `esc()` or `textContent`. Never interpolate API data into HTML unescaped.
 - **External links:**
   - A TI Assistant link renders only if it starts with `https://`, with `rel="noopener noreferrer"` and `target="_blank"`.
   - Map links go through `encodeURIComponent`.

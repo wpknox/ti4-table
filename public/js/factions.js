@@ -1,11 +1,11 @@
 // Faction symbols. The SVGs use fill="currentColor" so they follow the theme,
 // which an <img> can't do; so they're fetched once as text and inlined.
-// The files are sanitised by scripts/clean-svg.mjs and served from our own
+// The files are sanitized by scripts/clean-svg.mjs and served from our own
 // origin. Callers put an empty <span class="fsym" data-faction="F_x"></span>
 // in their markup (no text, so nothing for the rules index to see) and call
 // hydrateSymbols() afterwards.
 
-// Faction name (as in tiles.json) -> symbol id. Keys are normalised by `key()`,
+// Faction name (as in tiles.json) -> symbol id. Keys are normalized by `key()`,
 // so "Sardakk N’orr" and "Sardakk Norr", or "Gene–Sorcerers" and "Gene-Sorcerers", match.
 // Built from the F_* page titles in rules.json. The Firmament and the Obsidian
 // share one rules page (F_firmament) but have a symbol each.

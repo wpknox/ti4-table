@@ -42,7 +42,7 @@ export const MAPS = [
       "The Argent Flight", "The Crimson Rebellion", "The Universities of Jol-Nar"],
   },
   {
-    // Derived: braced centre plus TI Assistant P markers in reverse order, so
+    // Derived: braced center plus TI Assistant P markers in reverse order, so
     // seat numbers must come from the markers, not from position.
     name: "SCPT 2021 Final with {18} and P6…P1 markers",
     str: "{18} " + fillZeros(SCPT_2021_FINAL, ["P6", "P5", "P4", "P3", "P2", "P1"]),

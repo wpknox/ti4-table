@@ -20,7 +20,7 @@ This was built and reviewed on 2026-10-15. Read `docs/research/tile-data.md` bef
 Seats come from the string itself, in this order: P1–P8 markers, then home tiles (Creuss and Crimson gates stand in for off-map homes), then 0s, then TI Assistant's defaults with a warning. `parse.js` exports `parseMapString`, `posToHex`, `hexToPos`, `hexToPixel`, `hexDistance`, `ringOf`, `DIRS`, `rotateLanes` and `HOME_POSITIONS`. Thunder's Edge hyperlanes 119–124 are not in the data, and the parser warns when a map uses them.
 
 Deliverables:
-- `docs/research/tile-data.md` covers which sources were checked, each one's **licence**, and what was used. This repo is public and GPL-3.0, so data may only be copied from a source whose licence allows it. If none does, transcribe the facts by hand: the numbers printed on tiles are game facts, but someone's JSON file is their work. Write down the reasoning.
+- `docs/research/tile-data.md` covers which sources were checked, each one's **license**, and what was used. This repo is public and GPL-3.0, so data may only be copied from a source whose license allows it. If none does, transcribe the facts by hand: the numbers printed on tiles are game facts, but someone's JSON file is their work. Write down the reasoning.
 - `public/data/tiles.json` holds every system tile the analyzer needs: base game, Prophecy of Kings, and Thunder's Edge if the data can be confirmed. Shape:
 
 ```jsonc
@@ -40,9 +40,9 @@ Deliverables:
   }
 }
 ```
-  `trait` is `"cultural" | "hazardous" | "industrial" | null`. `tech` is `"red" | "blue" | "green" | "yellow" | null`, using the tech-specialty colours: warfare red, propulsion blue, biotic green, cybernetic yellow.
+  `trait` is `"cultural" | "hazardous" | "industrial" | null`. `tech` is `"red" | "blue" | "green" | "yellow" | null`, using the tech-specialty colors: warfare red, propulsion blue, biotic green, cybernetic yellow.
 - `public/js/map/parse.js` turns a map string into `{ tiles: [{ pos, q, r, id, rotation }] }`. It must document the formats it accepts:
-  - **TTS / TI Assistant / tidraft strings**: space-separated tile numbers in ring order, starting at the top of ring 1 and going clockwise. Mecatol Rex (18) is implied in the centre unless the string starts with `{18}` or a similar braced override. Find out and record the exact rules, including:
+  - **TTS / TI Assistant / tidraft strings**: space-separated tile numbers in ring order, starting at the top of ring 1 and going clockwise. Mecatol Rex (18) is implied in the center unless the string starts with `{18}` or a similar braced override. Find out and record the exact rules, including:
     - where home systems sit for 3, 4, 5, 6, 7 and 8 players
     - what `0` and `-1` mean (empty or placeholder home)
     - hyperlane tile ids with a rotation suffix (`83A2`)
@@ -65,12 +65,12 @@ _Tightened 2026-10-15 into a build spec. Every number in the fixtures below was 
 #### Movement graph
 
 Nodes are the board's **systems**: every entry in `parsed.tiles` except hyperlane tiles (`tiles[id].type === "hyperlane"`). Open slots (`id === "0"`) are systems with no planets. Two systems are adjacent if:
-1. **Neighbouring hexes:** their hexes are neighbours (one `DIRS` step apart) and both exist.
+1. **Neighboring hexes:** their hexes are neighbors (one `DIRS` step apart) and both exist.
 2. **Wormholes:** they share a wormhole type (any string in `wormholes`: alpha, beta, gamma, delta, epsilon). Only on-map tiles count. Mallice and off-map homes aren't in the string, so ignore them.
 3. **Hyperlanes:** a hyperlane tile at hex H, placed at `rotation`, has edge pairs `rotateLanes(tiles[id].hyperlanes, rotation)`. For each pair `[a, b]`, the system one step from H in direction `a` is adjacent to the system one step from H in direction `b`. If an end leads off the map or onto another hyperlane, follow the lane through that hyperlane: enter it from edge `(e + 3) % 6`, take its pair that contains that edge, and continue. Stop after 6 hops to avoid loops. Being adjacent through a hyperlane costs 1 move, like any adjacency. The hyperlane hex itself is never a node.
 
 **Distance** from a seat is the number of moves, found by breadth-first search from the home system (distance 0) over that graph, with these anomaly rules:
-- `supernova` and `asteroid-field`: can't be entered or passed through. They still get a distance, for slicing only: 1 + the smallest distance among their reachable neighbours. They never expand the search.
+- `supernova` and `asteroid-field`: can't be entered or passed through. They still get a distance, for slicing only: 1 + the smallest distance among their reachable neighbors. They never expand the search.
 - `nebula`: can be entered but not passed through. It gets a distance and doesn't expand the search.
 - `gravity-rift`: passable at normal cost (keep it simple; the real rule gives +1 move on exit).
 - If `anomaly` is an array, apply the strictest rule (supernova/asteroid > nebula > rift).
@@ -207,7 +207,7 @@ Expected for SYM:
 ### 2c: The page
 
 _2026-10-15: `docs/design.md` ("Map page (M2c)" and "Tokens") is the visual spec. It overrides this section where they differ. In particular:_
-- _Seats are **numbered, not coloured**._
+- _Seats are **numbered, not colored**._
 - _The selected seat's slice gets `--hull-2` fill and a `--star` outline. Shared systems are hatched._
 - _Findings use hex markers: warn is filled `--warn`, note is outlined `--dust`, good is outlined `--resource`._
 - _The verdict sentence is the page title._
@@ -239,7 +239,7 @@ _2026-10-15: `docs/design.md` ("Map page (M2c)" and "Tokens") is the visual spec
 
 Section `/map`: `addSection({ prefix: "/map", label: "Map", render })`. Once a second section exists, the router's nav shows automatically.
 
-- **Input:** a paste box for the map string, plus an "Example map" button that loads a known-good 6-player map. The map lives in the URL (`/map?m=<string>`) so a link shares it. Save the last 5 analysed maps in `store` (localStorage) as a convenience.
+- **Input:** a paste box for the map string, plus an "Example map" button that loads a known-good 6-player map. The map lives in the URL (`/map?m=<string>`) so a link shares it. Save the last 5 analyzed maps in `store` (localStorage) as a convenience.
 - **Map:** inline SVG hexes. Planet resource/influence shown small (yellow number / blue number). Wormhole and anomaly glyphs. Seats tinted. Tap a tile for a popover with its planets, and tap a seat to highlight its slice. It must fit 390px wide. Pinch-zoom isn't needed; the SVG scales.
 - **Report:** one block per seat, ordered by seat, each with the 2–4 most important sentences and a "Details" disclosure holding the full metrics table. Use `--resource`/`--influence` for those numbers and `--tech-*` for tech skips.
 - **Verdict line** at the top.
@@ -255,7 +255,7 @@ Section `/map`: `addSection({ prefix: "/map", label: "Map", render })`. Once a s
 
 ## Acceptance
 
-- The example map parses, renders at 390px and 1280px in both colour schemes, and gives a sensible report for each seat.
+- The example map parses, renders at 390px and 1280px in both color schemes, and gives a sensible report for each seat.
 - A deliberately lopsided map (swap two rich systems into one slice) produces a clear warning naming that seat.
 - Every planet/tile number on screen matches `tiles.json`. Spot-check 5 tiles against a public tile reference.
 - No console errors. Offline works after first load (check in a non-localhost context, or reason about the precache list).

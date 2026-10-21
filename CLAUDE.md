@@ -16,7 +16,7 @@ Rules content comes from [tirules-search](https://github.com/wpknox/tirules-sear
 ```
 public/                  Everything served. Cloudflare Pages output dir. No build step.
   index.html             App shell (one page; the client router renders sections into <main>)
-  css/base.css           Tokens (colour, type), shell, shared controls, toast
+  css/base.css           Tokens (color, type), shell, shared controls, toast
   css/rules.css          Rules section
   js/app.js              Entry: registers sections, starts router, registers service worker
   js/router.js           History-API router: addSection(), navigate(), setUrl(), back()
@@ -33,7 +33,7 @@ scripts/
   build-rules.mjs        tirules-search PHP pages -> public/data/rules.json
   serve.mjs              Dev server with SPA fallback (like Pages)
 docs/plans/              One plan per milestone. Subagents work from these.
-docs/research/           Findings that plans depend on (data sources, licences)
+docs/research/           Findings that plans depend on (data sources, licenses)
 ```
 
 ## Commands
@@ -48,12 +48,12 @@ npm run check:api   # games API, 91 checks, private local D1, port 8790
 PLAYWRIGHT_CORE=<dir>/node_modules/playwright-core/index.mjs npm run check:ui   # Chrome smoke test of every section, port 8791
 ```
 
-`check:ui` needs `playwright-core` installed outside the repo (`npm i --prefix ~/.cache/ti4-table-pw playwright-core`), never in `package.json`. It fails on console errors, CSP violations, horizontal scroll and broken core flows. It doesn't judge looks. Run both before committing UI work. For looks, verify with Playwright against the dev server, at phone (390×844) and desktop (1280×800) sizes, in both dark and light colour schemes. The Playwright MCP may only write screenshots under the repo it was started from. Use `.playwright-mcp/` there, which is gitignored.
+`check:ui` needs `playwright-core` installed outside the repo (`npm i --prefix ~/.cache/ti4-table-pw playwright-core`), never in `package.json`. It fails on console errors, CSP violations, horizontal scroll and broken core flows. It doesn't judge looks. Run both before committing UI work. For looks, verify with Playwright against the dev server, at phone (390×844) and desktop (1280×800) sizes, in both dark and light color schemes. The Playwright MCP may only write screenshots under the repo it was started from. Use `.playwright-mcp/` there, which is gitignored.
 
 ## Invariants (rules section)
 
 - **One text function.** `textOf(root)` in `data.js` concatenates text nodes and skips `<style>` and the injected `.pn` paragraph-number links. The search index and the on-page highlighter both use it, which is why tapping snippet N lands on highlight N. Any change to how text is collected must apply to both. Never put visible text into a rendered page that the index didn't see: the big rule number is CSS `attr(data-num)` for exactly this reason.
-- **`normChars` must stay one-for-one** (same length in and out), so normalised offsets match DOM offsets.
+- **`normChars` must stay one-for-one** (same length in and out), so normalized offsets match DOM offsets.
 - **Paragraph numbers** are computed in `annotate()` from tirules' CSS counters (`content: '58.' counter(item)`, `counter-reset: item 1`). LRR paragraphs get ids like `58.3a`. Notes get `<section-slug>-<n>`. Page `<style>` tags are then removed, so they can't leak site-wide.
 - **Search modes:** `phrase` (exact) first. If the phrase isn't found, `words` (paragraphs with every meaningful word, with stopwords dropped, light stemming, and aliases like AFB/TG/PN), then `some` (all but one word). The mode is put in result URLs (`&mode=`) so the page view recomputes the same matches.
 - **URLs are the state.** `/rules/R_movement?q=…&mode=…&m=2#58.3`. Back/forward uses real history. `back()` falls back to `/rules` because a home-screen app has no back button.
@@ -62,9 +62,9 @@ PLAYWRIGHT_CORE=<dir>/node_modules/playwright-core/index.mjs npm run check:ui   
 
 ## Design system
 
-The frontend-design brief is TI4's own vocabulary: dark space, hex tiles, resource yellow and influence blue. Those colours mean something here and aren't decoration.
+The frontend-design brief is TI4's own vocabulary: dark space, hex tiles, resource yellow and influence blue. Those colors mean something here and aren't decoration.
 
-- **Tokens** live in `:root` in `base.css`. Use `--void` (background), `--hull`/`--hull-2` (surfaces), `--seam` (lines), `--star` (text), `--dust` (muted), `--influence` (links, focus, interactive), `--resource` (numbers, rulings, the brand hex), and `--tech-*` (the four tech colours, for the map). A light theme comes from `prefers-color-scheme`. Every new colour needs a light value too.
+- **Tokens** live in `:root` in `base.css`. Use `--void` (background), `--hull`/`--hull-2` (surfaces), `--seam` (lines), `--star` (text), `--dust` (muted), `--influence` (links, focus, interactive), `--resource` (numbers, rulings, the brand hex), and `--tech-*` (the four tech colors, for the map). A light theme comes from `prefers-color-scheme`. Every new color needs a light value too.
 - **Type:** Saira (variable width, so use `font-stretch` 105–125% for display) for headings, numbers and controls. Atkinson Hyperlegible Next for reading text. Reading size is `--fs` (A−/A+).
 - **Signature:** numbers. Rule numbers sit in a hanging gutter in expanded Saira, and the page's rule number is huge and outlined. Spend boldness there and keep everything else quiet.
 - **Avoid:** all-caps labels, eyebrow text above headings, identical rounded cards everywhere, decorative gradients, entrance animations on every section.

@@ -53,7 +53,7 @@ Ground rules for every phase:
   - **Points:** each seat's stepper gains an "Unknown" state. Points start at Unknown, and the stepper shows "?".
   - **Winner:** chosen with a radio per seat ("Won"), not derived from points.
   - **Faction:** may be left blank.
-- The draft (localStorage) keeps these fields. `sanitiseDraft` must accept them.
+- The draft (localStorage) keeps these fields. `sanitizeDraft` must accept them.
 
 ### Display
 
@@ -140,15 +140,15 @@ Never compute points from the action log. It disagrees with the archive: Imperia
 
 ### Matching (`public/js/games/match.js`, new, pure)
 
-- **Factions:** use `factionId()` from `public/js/factions.js`, which already normalises "The", hyphens and apostrophes. All six faction names in the owner's real export matched it.
-- **Players:** `matchPlayer(name, roster)` compares a TI Assistant `playerName` with the roster from `GET /api/players`, ignoring case, accents and extra spaces. It returns the player id or null. Only an exact normalised match counts: no fuzzy matching, because a wrong match credits a win to the wrong friend.
+- **Factions:** use `factionId()` from `public/js/factions.js`, which already normalizes "The", hyphens and apostrophes. All six faction names in the owner's real export matched it.
+- **Players:** `matchPlayer(name, roster)` compares a TI Assistant `playerName` with the roster from `GET /api/players`, ignoring case, accents and extra spaces. It returns the player id or null. Only an exact normalized match counts: no fuzzy matching, because a wrong match credits a win to the wrong friend.
 - Test both in `scripts/check-ti-assistant.mjs`.
 
 ### Form
 
 - On `/games/new` only: above the date, add a field "TI Assistant link" with the button "Fill from TI Assistant".
 - On success, the form fills in:
-  - date, points to win, expansions, map string, seat count and positions, factions, colours and speaker
+  - date, points to win, expansions, map string, seat count and positions, factions, colors and speaker
   - the TI Assistant link field
   - players, by matching names against the roster with `matchPlayer`. An unmatched name leaves the player empty, with a hint under the seat: "TI Assistant calls this player 'X'". Use `esc()`.
 - Fill points and the winner too, when `scores_from_archive` is true. The toast then says "Filled from TI Assistant. Check it, then save." Otherwise it says "Filled from TI Assistant. Add the final points and winner." Nothing is saved until the person presses save.
@@ -176,7 +176,7 @@ Add `check-api` cases for:
 
 ### Courtesy
 
-When phase C is ready, the owner will open an issue at https://github.com/ti-assistant/issues/issues to tell the author. Don't copy any TI Assistant source code; it has no licence.
+When phase C is ready, the owner will open an issue at https://github.com/ti-assistant/issues/issues to tell the author. Don't copy any TI Assistant source code; it has no license.
 
 ---
 

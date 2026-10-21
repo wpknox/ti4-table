@@ -79,7 +79,7 @@ Everything else is as written in the research doc:
 - revisions before update and delete
 - the validation rules
 - tokens stored only as SHA-256 hex
-- Crockford base32 codes with normalisation
+- Crockford base32 codes with normalization
 
 ## Seed (`db/seed.sql`, local only)
 

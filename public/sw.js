@@ -5,7 +5,7 @@
 //
 // Bump VERSION when the precache list changes. API calls are never cached.
 
-const VERSION = "v15";
+const VERSION = "v16";
 const CACHE = `ti4table-${VERSION}`;
 const PRECACHE = [
   "/",

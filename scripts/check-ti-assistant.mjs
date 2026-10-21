@@ -21,7 +21,7 @@ check("Live game: four seats in array order", same(live.seats.map((s) => s.seat_
 check("Live game: names are trimmed", live.seats[2].name === "Player 3");
 check("Live game: known factions map to our ids, unknown to null",
   same(live.seats.map((s) => s.faction), ["F_hacan", "F_sol", "F_norr", null]), JSON.stringify(live.seats.map((s) => s.faction)));
-check("Live game: Magenta becomes pink, an unknown colour becomes null",
+check("Live game: Magenta becomes pink, an unknown color becomes null",
   same(live.seats.map((s) => s.color), ["red", "blue", "pink", null]));
 check("Live game: speaker from data.speaker because the log has card picks", live.speaker_index === 2, live.speaker_index);
 check("Live game: no points and no winner", live.seats.every((s) => s.points === null && !s.is_winner) && live.scores_from_archive === false);
@@ -63,7 +63,7 @@ wild.data.factions = Array.from({ length: 12 }, (_, i) => ({ id: `Faction ${i}`,
 const w = trimTiGame(wild);
 check("Wild input: VP clamped to 20, long map dropped, expansions not an array ignored",
   w.points_to_win === 20 && w.map_string === null && !w.pok);
-check("Wild input: seats capped at 8, names at 40, bad colour null, index past 7 not used",
+check("Wild input: seats capped at 8, names at 40, bad color null, index past 7 not used",
   w.seats.length === 8 && w.seats.every((s) => s.name.length === 40 && s.color === null) && w.seats[7].seat_index === 7);
 
 // ── Link parsing ───

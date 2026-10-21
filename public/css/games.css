@@ -1,6 +1,6 @@
 /* Games section. Numbers are the signature: dates hang in the gutter in
  * resource yellow, and the winner's score is outlined like a rule number.
- * Everything else stays quiet. Seats are numbered and named, never coloured. */
+ * Everything else stays quiet. Seats are numbered and named, never colored. */
 
 .games-page { max-width: calc(var(--measure) + 2 * var(--gutter)); margin: 0 auto; padding: 8px var(--gutter) calc(env(safe-area-inset-bottom) + 48px); }
 .games-page h1 { margin: 20px 0 8px; font: 700 var(--t-2xl)/1.1 var(--display); font-stretch: 116%; text-wrap: balance; }
@@ -109,7 +109,7 @@ a.btn-primary { color: var(--void); }
 .unplayed { list-style: none; margin: 8px 0 0; padding: 0; columns: 2; column-gap: 20px; }
 .unplayed li { display: flex; align-items: center; padding: 6px 0; break-inside: avoid; font-size: var(--t-s); }
 .unplayed .fsym { color: var(--dust); }
-/* Win-rate bars: one series, one colour, thin, values written out. */
+/* Win-rate bars: one series, one color, thin, values written out. */
 .bars { list-style: none; margin: 0; padding: 0; }
 .bars li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; padding: 8px 0; border-top: 1px solid color-mix(in srgb, var(--seam) 55%, transparent); }
 .bar-label { display: flex; align-items: center; font-weight: 600; min-width: 0; }

@@ -1,6 +1,6 @@
 import { HttpError, json, readJson } from "./http.js";
 import {
-  requireRole, newCode, formatCode, normaliseCode, sha256Hex, nowIso, newSessionToken,
+  requireRole, newCode, formatCode, normalizeCode, sha256Hex, nowIso, newSessionToken,
   sessionCookie, SESSION_DAYS, SESSION_MAX_AGE, lockoutGate, failRedeem,
 } from "./auth.js";
 
@@ -55,7 +55,7 @@ export async function adminJoinInfo(db, gameId) {
 // ── Public: preview and claim ───
 // Finds the live link behind a code, or counts a failure and throws 400.
 async function liveLink(ctx, body, ipHash) {
-  const code = normaliseCode(body.code);
+  const code = normalizeCode(body.code);
   if (!code) return failRedeem(ctx, ipHash);
   const link = await ctx.env.DB.prepare(
     `SELECT l.game_id, l.created_by, g.played_on, g.date_precision, g.status

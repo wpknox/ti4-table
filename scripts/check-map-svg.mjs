@@ -105,7 +105,7 @@ for (const view of ["analysis", "art"]) {
     const svg = renderMapSvg(parsed, report, tiles, { ...opts, tileIds: true });
     check((svg.match(/<text class="tile-id"/g) ?? []).length === want.length, `${view}: ${want.length} tile numbers`);
     check(balanced(svg), `${view}: tile number tags balance`);
-    check(/<text class="tile-id"[^>]*>18<\/text>/.test(svg), `${view}: Mecatol labelled`);
+    check(/<text class="tile-id"[^>]*>18<\/text>/.test(svg), `${view}: Mecatol labeled`);
     const homeGroups = svg.split('<g class="hex').filter((g) => g.startsWith(" home"));
     check(homeGroups.length === parsed.homes.length && homeGroups.every((g) => !g.includes("tile-id")), `${view}: no number in a home`);
     check(!/<text class="tile-id"[^>]*>0<\/text>/.test(svg), `${view}: no 0 label`);

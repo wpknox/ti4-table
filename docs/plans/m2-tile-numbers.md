@@ -8,22 +8,22 @@ On game day the group builds the physical map from the Map page. Add a **Tile nu
 
 - `public/js/map/svg.js`: new option `tileIds` (boolean, default `false`) for `renderMapSvg`. If it's `false`, the output must be byte-for-byte unchanged (`scripts/check-map-svg.mjs` depends on this).
 - `public/js/map/view.js`: the switch, the URL parameter and the remembered default.
-- `public/css/map.css`: label styles, plus light-theme values if new colours are needed (use the existing tokens; don't add new ones unless you have to).
+- `public/css/map.css`: label styles, plus light-theme values if new colors are needed (use the existing tokens; don't add new ones unless you have to).
 - `scripts/check-map-svg.mjs`: add checks (below).
 - `scripts/check-ui.mjs`: add checks (below).
 - `public/sw.js`: bump `VERSION` (cached JS/CSS changed).
 
-## Behaviour
+## Behavior
 
 - **URL:** `&ids=1` turns numbers on. If it's absent, they're off. As with `view`, the URL alone decides what's shown. `store` key `mapIds` (`"1"`/`"0"`) only sets the default for links to *new* maps (the form submit and the example link), the same way `mapView` works today. Extend the local `mapHref(m, seat, view)` in `view.js` to `mapHref(m, seat, view, ids)` and pass `ids` through **every** call (`select()`'s `setUrl`, the view toggle, the form submit, the example link, and anything else that builds a map URL). The view toggle keeps the current `ids`, and the ids switch keeps the current `view` and `seat`.
 - **Control:** one `<button type="button" class="ids-toggle" aria-pressed="true|false">Tile numbers</button>`, next to the existing `.view-toggle` group (same row on desktop; it can wrap on a phone). Clicking it calls `navigate(...)` (a real history entry, like the view toggle) and saves `mapIds`. Style it like the toggle buttons (Saira, quiet). Pressed state uses `--influence`. Touch target ≥44px tall. Sentence case, no all-caps.
-- **What's labelled:** every tile in `parsed.tiles` except:
+- **What's labeled:** every tile in `parsed.tiles` except:
   - id `"0"` (open slots and home placeholders)
   - home positions (`seatAt.has(t.pos)`), because the seat numeral is already there
-  - Show the id as `parse.js` gives it, including the `A`/`B` face on hyperlanes (e.g. `83A`), because the face matters when you place the physical tile. Mecatol (18) gets labelled too.
+  - Show the id as `parse.js` gives it, including the `A`/`B` face on hyperlanes (e.g. `83A`), because the face matters when you place the physical tile. Mecatol (18) gets labeled too.
 - **Analysis view:** a small label at the **top** of the hex, inside the edge: `<text class="tile-id" x="0" y="-12.6">83A</text>`, about 5.5–6px Saira at `font-stretch: 110%`, `fill: var(--dust)` or `var(--star)` at reduced opacity. Put a small rounded `rect class="id-scrim"` behind it if contrast needs it.
   - Check by screenshot that it doesn't collide with the top planet of a 3-planet system (e.g. tile 69 or 70) or with the wormhole/anomaly marks. If it does, it may move to the bottom (`y≈13`), or the planets may shift down a bit, but **only when `tileIds` is on**.
-- **Tile art view:** the art has no other text, so the number can be bigger and easier to read across a table: about 9px, centred (`y=0`), on a dark pill scrim (`rect class="id-scrim"`, `fill: rgb(0 0 0 / .65)`, rx 2). The text is `#fff` or `var(--star)`. It must stay readable in the light colour scheme (the art is the same in both themes, so a dark scrim with light text in both is fine).
+- **Tile art view:** the art has no other text, so the number can be bigger and easier to read across a table: about 9px, centered (`y=0`), on a dark pill scrim (`rect class="id-scrim"`, `fill: rgb(0 0 0 / .65)`, rx 2). The text is `#fff` or `var(--star)`. It must stay readable in the light color scheme (the art is the same in both themes, so a dark scrim with light text in both is fine).
 - **Slices still work:** the labels are `pointer-events: none`, and tapping a hex still selects the seat. With a seat selected, the labels outside the slice dim along with their hexes (follow the existing `.has-sel` / `.sel` dimming; check it).
 - **Accessibility:** the hex `aria-label` already starts "Tile N: …", so the labels get `aria-hidden="true"`. The button's `aria-pressed` reflects the state.
 - **Order of markup:** the label goes just before the `edge` polygon of its hex group, so it draws over the planets/art but under the edge. In art view, `artWithMark` splices the TE mark in before the edge; insert the label the same way.

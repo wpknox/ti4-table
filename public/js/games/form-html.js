@@ -164,7 +164,7 @@ export function seatHtml(f, s, i) {
     ${s.ti_hint && s.player_id == null ? `<p class="ti-hint muted">TI Assistant calls this player “${esc(s.ti_hint)}”</p>` : ""}
     ${factionHtml(f, s)}
     <div class="field two">
-      <div><label for="c-${s.key}">Colour <span class="muted">(optional)</span></label>
+      <div><label for="c-${s.key}">Color <span class="muted">(optional)</span></label>
         <select id="c-${s.key}" data-f="color"><option value="">Not set</option>${COLORS.map((c) => `<option value="${c}"${s.color === c ? " selected" : ""}>${cap(c)}</option>`).join("")}</select></div>
       ${position}
     </div>

@@ -25,13 +25,13 @@ const check = (ok, msg) => {
 for (let pos = 0; pos < 91; pos++) {
   const { q, r } = posToHex(pos);
   check(hexToPos(q, r) === pos, `position ${pos} round-trips through (${q},${r})`);
-  check(hexDistance({ q, r }, { q: 0, r: 0 }) === ringOf(pos), `position ${pos} is ${ringOf(pos)} from the centre`);
+  check(hexDistance({ q, r }, { q: 0, r: 0 }) === ringOf(pos), `position ${pos} is ${ringOf(pos)} from the center`);
   if (pos > 0 && ringOf(pos + 1) === ringOf(pos)) {
     const n = posToHex(pos + 1);
-    check(hexDistance({ q, r }, n) === 1, `positions ${pos} and ${pos + 1} are neighbours`);
+    check(hexDistance({ q, r }, n) === 1, `positions ${pos} and ${pos + 1} are neighbors`);
   }
 }
-check(JSON.stringify(posToHex(1)) === JSON.stringify({ q: 0, r: -1 }), "position 1 is north of the centre");
+check(JSON.stringify(posToHex(1)) === JSON.stringify({ q: 0, r: -1 }), "position 1 is north of the center");
 check(JSON.stringify(posToHex(2)) === JSON.stringify({ q: 1, r: -1 }), "position 2 is north-east (clockwise)");
 console.log(`geometry: positions 0-90 ${failures ? "FAILED" : "ok"}`);
 
@@ -47,8 +47,8 @@ for (const m of MAPS) {
   check(p.playerCount === m.players, `player count ${p.playerCount} = ${m.players}`);
   check(JSON.stringify(p.homes) === JSON.stringify(m.homes), `homes ${p.homes} = ${m.homes}`);
 
-  const centre = p.tiles.find((t) => t.pos === 0);
-  check(centre?.q === 0 && centre?.r === 0 && data[centre.id]?.type === "mecatol", "Mecatol Rex at (0,0)");
+  const center = p.tiles.find((t) => t.pos === 0);
+  check(center?.q === 0 && center?.r === 0 && data[center.id]?.type === "mecatol", "Mecatol Rex at (0,0)");
 
   const coords = new Set(p.tiles.map((t) => `${t.q},${t.r}`));
   check(coords.size === p.tiles.length, "no two tiles share a hex");

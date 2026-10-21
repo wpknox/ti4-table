@@ -99,7 +99,7 @@ console.log("SUPERNOVA");
   for (const s of report.seats.slice(1)) check(s.metrics.mecatol === 3, `seat ${s.seat} mecatol ${s.metrics.mecatol}`);
   check(s1.distance["7"] === 1, `seat 1 distance to 7 is ${s1.distance["7"]}`);
   // Nothing beyond the supernova may be reached through it: 7's other
-  // neighbours (8, 1, 18, 19, 20 etc.) are reached the long way or not at all.
+  // neighbors (8, 1, 18, 19, 20 etc.) are reached the long way or not at all.
   const sh = s1.shared.find((x) => x.pos === 1);
   check(sh && sh.with.length === 2 && sh.with.includes(2) && sh.with.includes(6), `position 1 shared with 2 and 6: ${JSON.stringify(sh)}`);
   near(sh?.weight, 1 / 3, "position 1 weight");
