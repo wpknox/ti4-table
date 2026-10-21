@@ -11,7 +11,7 @@ import { get, post, del, currentPlayer, ApiError } from "./api.js";
 import { factionName } from "./names.js";
 import { loadMapModel, drawMapWithLabels } from "../map/load.js";
 import * as S from "./stats.js";
-import { dayShortP, yearOf, dayLongP, expansionsText, safeTiLink, safeMiltyLink, mapHref, errorBlock, tabs, shareButton, sym } from "./ui.js";
+import { dayShortP, yearOf, dayLongP, expansionsText, safeTiLink, safeMiltyLink, mapHref, errorBlock, tabs, copyButton, shareButton, sym } from "./ui.js";
 import { renderForm } from "./form.js";
 import { renderAdmin, renderHistory } from "./admin.js";
 import { renderClaim } from "./claim.js";
@@ -124,10 +124,12 @@ function renderList(env) {
   const canLog = me && (me.role === "editor" || me.role === "admin");
   main.replaceChildren(wrap());
   const page = $(".games-page", main);
+  // Plan: a game not played yet (the map can come later). Log: one that's finished.
+  const actions = canLog
+    ? `<a class="btn" href="/games/new?plan=1">Plan a game</a><a class="btn btn-primary" href="/games/new">Log a game</a>`
+    : `<a class="btn btn-primary" href="/games/join">Sign in</a>`;
   page.innerHTML = `${tabs("list", me)}
-    <div class="g-head"><h1>Games</h1>
-      ${canLog ? `<a class="btn btn-primary" href="/games/new">Log a game</a>` : `<a class="btn btn-primary" href="/games/join">Sign in</a>`}
-    </div>
+    <div class="g-head"><h1>Games</h1>${actions}</div>
     <div id="upcoming" hidden><h2>Upcoming</h2><ul class="glist" id="uplist"></ul><h2>Played</h2></div>
     <ul class="glist" id="glist"></ul>
     <p class="g-more"></p>`;
@@ -543,7 +545,10 @@ export function codeBlock(code, shareText) {
   const big = document.createElement("p");
   big.className = "bigcode";
   big.textContent = code;
-  box.append(big, shareButton(`${shareText}: ${code}`));
+  // Copy gives just the code, which is what the other device's box wants.
+  box.append(big, copyButton(code, "Copy code", "Code copied", big));
+  const share = shareButton(`${shareText}: ${code}`);
+  if (share) box.append(share);
   return box;
 }
 

@@ -94,7 +94,7 @@ a.btn-primary { color: var(--void); }
 .help { margin: 8px 0 14px; color: var(--dust); font-size: var(--t-s); }
 .join-form .error { margin: 0 0 12px; }
 .codeblock { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: 16px 0; }
-.bigcode { margin: 0; font: 700 2rem/1 var(--display); font-stretch: 120%; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; color: var(--resource); overflow-wrap: anywhere; }
+.bigcode { -webkit-user-select: all; user-select: all; margin: 0; font: 700 2rem/1 var(--display); font-stretch: 120%; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; color: var(--resource); overflow-wrap: anywhere; }
 .g-me section { margin-top: 24px; }
 
 /* Stats */

@@ -306,6 +306,36 @@ async function run() {
     check("Form shows an error and the game is unchanged", msg.length > 0 && new URL(page.url()).pathname.endsWith("/edit") && !g.data?.game?.ti_assistant_url, `${msg} / ${g.data?.game?.ti_assistant_url}`);
   });
 
+  // ── Plan from the Games tab, with no map yet ───
+  await step("Plan a game from the list", async () => {
+    await go("/games");
+    await page.click('a[href="/games/new?plan=1"]');
+    await page.waitForSelector(".seat-card");
+    for (let i = 0; i < 3; i++) await page.locator("[data-rm]:visible").first().click();
+    const names = ["UI Admin", "Guest One", XSS_NAME];
+    for (let i = 0; i < 3; i++) await pick(page.locator(".seat-card").nth(i), "player", names[i]);
+    check("Plan form has an empty map string box", (await page.inputValue("#f-map")) === "");
+    await page.click("#save");
+    await page.waitForURL(/\/games\/\d+$/, { timeout: 10000 });
+    await page.waitForSelector(".gseat");
+    check("Planned game with no map saves", (await page.locator(".gtitle").innerText()).startsWith("Planned for"));
+    check("Planned game has no map box", (await page.locator(".game-map").count()) === 0);
+  });
+
+  // ── Device code: Copy puts just the code on the clipboard ───
+  await step("Device code copy", async () => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
+    await go("/games/me");
+    await page.click("#dev-code");
+    await page.waitForSelector(".bigcode");
+    const code = await page.locator(".bigcode").innerText();
+    await page.getByRole("button", { name: "Copy code" }).click();
+    await page.waitForTimeout(200);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    check("Copy code copies exactly the code", clip === code && /^[0-9A-Z]{5}-[0-9A-Z]{5}$/.test(clip), `${clip} vs ${code}`);
+    check("Copy code says it worked", (await page.locator("#toast", { hasText: "Code copied" }).count()) > 0);
+  });
+
   // ── Milty link, passkey and TI Assistant password ───
   await step("Milty and TI Assistant password", async () => {
     await go(`/games/${gameId}/edit`);

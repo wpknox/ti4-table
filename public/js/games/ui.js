@@ -1,5 +1,5 @@
 // Small pieces shared by the games pages.
-import { esc } from "../lib.js";
+import { esc, toast } from "../lib.js";
 import { symbolSlot } from "../factions.js";
 import { isTiAssistantUrl, isMiltyUrl } from "./validate.js";
 
@@ -73,20 +73,38 @@ export function tabs(active, me) {
   </nav>`;
 }
 
-// A share button that uses the phone's share sheet, else copies.
+const button = (label, className = "btn") =>
+  Object.assign(document.createElement("button"), { type: "button", className, textContent: label });
+
+// Copies `text` and says so. If the clipboard is blocked (some browsers, some
+// in-app views), selects `el` so a long-press or Ctrl+C copies it instead.
+export async function copyText(text, done, el) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(done);
+  } catch {
+    if (el) getSelection()?.selectAllChildren(el);
+    toast(el ? "Couldn't copy. It's selected, so copy it by hand." : "Couldn't copy. Copy it by hand.");
+  }
+}
+
+// A button that copies `text`.
+export function copyButton(text, label, done, el) {
+  const b = button(label, "btn btn-primary");
+  b.addEventListener("click", () => copyText(text, done, el));
+  return b;
+}
+
+// The phone's share sheet, or null where there isn't one.
 export function shareButton(text, label = "Share") {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "btn";
-  b.textContent = navigator.share ? label : "Copy";
+  if (!navigator.share) return null;
+  const b = button(label);
   b.addEventListener("click", async () => {
     try {
-      if (navigator.share) await navigator.share({ text });
-      else {
-        await navigator.clipboard.writeText(text);
-        b.textContent = "Copied";
-      }
-    } catch {}
+      await navigator.share({ text });
+    } catch (err) {
+      if (err.name !== "AbortError") toast("Couldn't open sharing. Use Copy code instead.");
+    }
   });
   return b;
 }
